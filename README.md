@@ -1,10 +1,10 @@
 # Custom Crosshair
 
-A crosshair mod for HELLDIVERS (2015), for the [Obsidian](https://github.com/Alomare/ObsidianModManager) mod manager. It replaces the aim cursor of the game with a crosshair built from shapes, with one look between shots and another while aiming, in missions and on the ship. The menu cursor stays as it is.
+A crosshair mod for HELLDIVERS (2015), for the [Obsidian](https://github.com/Alomare/ObsidianLauncher) mod manager. It replaces the aim cursor of the game with a crosshair built from shapes, with one look between shots and another while aiming, in missions and on the ship. The menu cursor stays as it is.
 
 Every setting is in the Options tab of Custom Crosshair in Obsidian, in three groups. The Idle and Aiming groups open with a live preview of the crosshair, at actual size and magnified, over a mid grey. There is no in-game settings page, and a change applies at the next launch of the game.
 
-Custom Crosshair is a client mod: it works in any lobby, and only this player sees it. It needs no other mod, and works with Integrated Third Person.
+Custom Crosshair is a client mod: it works in any lobby, and only this player sees it. It needs no other mod, and works with Integrated Third Person. The option groups and previews need Obsidian 1.5.0 or later; an older Obsidian lists the same options in one list, without previews.
 
 ## Settings
 
