@@ -16,7 +16,7 @@
 -- crosshair flies back in place of the image, shrinking and fading the same way.
 local shapes = obsidian.module("src/shapes")
 
-local VERSION = "0.1.0"
+local VERSION = "0.1.1"
 local MOD_ID = "alomare.customcrosshair"
 local ITP_ID = "alomare.integratedthirdperson"
 
@@ -223,17 +223,48 @@ else
 	join_itp()
 end
 
+-- The idle and aiming looks fade into each other over FADE seconds instead of snapping. blend runs from
+-- 0 (idle) to 1 (aiming) while a crosshair is up, and is nil while none is.
+local FADE = 0.08
+local blend = nil
+-- The top-down looks: a state left on "game" has none, as the game draws that cursor.
+local top_looks = { idle = hide.idle and looks.idle or nil, aim = hide.aim and looks.aim or nil }
+
+local function frame_time()
+	local dt = rawget(_G, "ENGINE_DT")
+	if type(dt) ~= "number" or dt <= 0 then return 1 / 60 end
+	return math.min(dt, 0.1)
+end
+
+-- Moves the blend toward the state shown now, then draws one look, or both while they cross.
+local function draw_state(pick, aiming, x, y)
+	local target = aiming and 1 or 0
+	if blend == nil then
+		blend = target
+	elseif blend ~= target then
+		local step = frame_time() / FADE
+		blend = target > blend and math.min(target, blend + step) or math.max(target, blend - step)
+	end
+	if blend >= 1 then
+		draw(pick.aim, x, y)
+	elseif blend <= 0 then
+		draw(pick.idle, x, y)
+	else
+		draw(pick.idle, x, y, 1 - blend)
+		draw(pick.aim, x, y, blend)
+	end
+end
+
 local function frame()
 	local cm = rawget(_G, "CursorManager")
 	local spot = third_person()
 	if spot then
-		if not menu_up(cm) then draw(third_looks[spot.aiming and "aim" or "idle"], spot.x, spot.y) end
+		if menu_up(cm) then blend = nil else draw_state(third_looks, spot.aiming, spot.x, spot.y) end
 	else
 		local state = cursor_state(cm)
-		if state and hide[state] then
-			local x, y = mouse()
-			if x then draw(looks[state], x, y) end
-		end
+		local x, y = nil, nil
+		if state then x, y = mouse() end
+		if x then draw_state(top_looks, state == "aim", x, y) else blend = nil end
 	end
 	if flight.on then
 		flight.on = false

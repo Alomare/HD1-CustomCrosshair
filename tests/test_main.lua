@@ -9,6 +9,8 @@ local MOUSE = { x = 500, y = 300 }
 local function setup(options)
 	SET, BITMAPS = {}, {}
 	MOUSE.x, MOUSE.y = 500, 300
+	-- A long frame finishes every fade at once; one test below covers the fade.
+	rawset(_G, "ENGINE_DT", 1)
 	rawset(_G, "Window", { set_cursor = function(p) SET[#SET + 1] = p end })
 	rawset(_G, "CursorManager", { shown = true, current_cursor = "hud/cursors/game", next_cursor = nil })
 	rawset(_G, "Mouse", { axis_index = function(name) return name == "cursor" and 7 or nil end, axis = function(i) return i == 7 and MOUSE or nil end })
@@ -141,6 +143,36 @@ test("a_transition_draws_the_look_it_heads_for", function()
 	frame()
 	eq(#rects_at(861), 0, "no aiming outline")
 	eq(#rects_at(862), 4, "idle arms")
+end)
+
+test("idle_and_aiming_fade_into_each_other", function()
+	setup({ idle_shape = "cross", idle_thickness = 1, idle_outline = false })
+	rawset(_G, "ENGINE_DT", 0.02)
+	frame()
+	local aim = has_rect(862, 505, 299, 8, 2)
+	assert(aim, "aiming look at once on the first frame")
+	eq(aim.alpha, 1, "full strength")
+	CursorManager.current_cursor = "hud/cursors/game_inactive"
+	kit().calls = {}
+	frame()
+	-- 0.02 of 0.08 seconds: a quarter of the way to idle.
+	local idle = has_rect(862, 505, 300, 8, 1)
+	aim = has_rect(862, 505, 299, 8, 2)
+	assert(idle and aim, "both looks while they cross")
+	near(idle.alpha, 0.25, "idle fading in")
+	near(aim.alpha, 0.75, "aiming fading out")
+	eq(kit().alpha, 1, "opacity back")
+	for _ = 1, 3 do frame() end
+	kit().calls = {}
+	frame()
+	eq(has_rect(862, 505, 299, 8, 2), nil, "aiming look gone")
+	eq(has_rect(862, 505, 300, 8, 1).alpha, 1, "idle at full strength")
+	CursorManager.current_cursor = "hud/cursors/menu"
+	frame()
+	CursorManager.current_cursor = "hud/cursors/game"
+	kit().calls = {}
+	frame()
+	eq(has_rect(862, 505, 299, 8, 2).alpha, 1, "after a menu the look comes back at once")
 end)
 
 test("menus_the_map_and_a_hidden_cursor_draw_nothing", function()

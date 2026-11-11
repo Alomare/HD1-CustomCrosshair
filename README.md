@@ -27,7 +27,7 @@ Sizes are screen pixels at scale 1. Every line lands on whole pixels, so both si
 
 ## Idle and aiming
 
-The game shows the aiming cursor while the aim button, fire or a throw is held. Between shots the game shows a dimmer cursor when the crosshair option in the game settings keeps the crosshair visible, and hides the cursor otherwise. In that case the cursor flies back to the Helldiver as it shrinks, and the aiming crosshair here does the same. A state set to Game cursor leaves that state to the game.
+The game shows the aiming cursor while the aim button, fire or a throw is held. Between shots the game shows a dimmer cursor when the crosshair option in the game settings keeps the crosshair visible, and hides the cursor otherwise. In that case the cursor flies back to the Helldiver as it shrinks, and the aiming crosshair here does the same. A state set to Game cursor leaves that state to the game. Switching between idle and aiming, the crosshair fades from one look to the other in 0.08 seconds.
 
 ## Integrated Third Person
 
