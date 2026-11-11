@@ -28,17 +28,23 @@ M.DEFAULTS = {
 		shape = "circle", scale = 1, gap = 4, thickness = 1, color = "#ffffff", opacity = 0.6,
 		outline = true, outline_color = "#000000", outline_thickness = 1,
 		shadow = false, shadow_color = "#000000", shadow_opacity = 0.5, shadow_offset = 2,
+		shadow_size = 1, shadow_spread = 0, shadow_blur = 0,
 	},
 	aim = {
 		shape = "cross_dot", scale = 1, gap = 4, thickness = 2, color = "#ffffff", opacity = 1,
 		outline = true, outline_color = "#000000", outline_thickness = 1,
 		shadow = false, shadow_color = "#000000", shadow_opacity = 0.5, shadow_offset = 2,
+		shadow_size = 1, shadow_spread = 0, shadow_blur = 0,
 	},
 }
 
 -- The settings of one state, without the prefix.
 M.KEYS = { "shape", "scale", "gap", "thickness", "color", "opacity", "outline", "outline_color", "outline_thickness",
-	"shadow", "shadow_color", "shadow_opacity", "shadow_offset" }
+	"shadow", "shadow_color", "shadow_opacity", "shadow_offset", "shadow_size", "shadow_spread", "shadow_blur" }
+
+-- Shadow blur: rings of copies of the shadow, eight copies to a ring, one ring per pixel of blur.
+M.MAX_BLUR = 3
+M.BLUR_DIRECTIONS = { { 1, 0 }, { 1, 1 }, { 0, 1 }, { -1, 1 }, { -1, 0 }, { -1, -1 }, { 0, -1 }, { 1, -1 } }
 
 local SQRT_HALF = math.sqrt(0.5)
 
@@ -100,17 +106,18 @@ local function sum(list, sizes)
 end
 
 -- The rectangles of a shape as whole pixels { kind = "rect", x, y, w, h } around the centre (c, c)
--- of the aim pixel: grown by `grow` and moved by `shift` down and to the right, all before the
--- scale k.
-function M.rect_items(shape, thickness, gap, k, c, grow, shift, out)
+-- of the aim pixel: sized by z, then grown by `grow` and moved by `shift` down and to the right, all
+-- before the scale k. z is 1 when left out (1 times a sum is the same sum, to the last bit).
+function M.rect_items(shape, thickness, gap, k, c, grow, shift, out, z)
 	out = out or {}
+	z = z or 1
 	local sizes = { H = thickness / 2, G = gap, T = thickness, ["1"] = 1 }
 	for _, r in ipairs(M.RECTS) do
 		if has(r.shapes, shape) then
-			local x0 = sum(r.x0, sizes) - grow + shift
-			local x1 = sum(r.x1, sizes) + grow + shift
-			local y0 = sum(r.y0, sizes) - grow - shift
-			local y1 = sum(r.y1, sizes) + grow - shift
+			local x0 = z * sum(r.x0, sizes) - grow + shift
+			local x1 = z * sum(r.x1, sizes) + grow + shift
+			local y0 = z * sum(r.y0, sizes) - grow - shift
+			local y1 = z * sum(r.y1, sizes) + grow - shift
 			local l, rr = round(c + k * x0), round(c + k * x1)
 			local b, t = round(c + k * y0), round(c + k * y1)
 			if rr <= l then rr = l + 1 end
@@ -220,26 +227,69 @@ function M.items(parts, grow, shift, c, out)
 	return out
 end
 
--- Everything one state draws, back to front: { { role = "shadow" | "outline" | "fill", items }, ... }.
+-- Rings of blur at scale k: { { dx, dy, weight }, ... }, whole pixels with y up. Ring j sits round(j * k)
+-- pixels out, and each copy in it takes `weight` of the shadow opacity: less the further out, and a
+-- third at most, since about three copies of a ring overlap just past a straight edge.
+function M.blur_copies(blur, k)
+	local n = math.max(0, math.min(M.MAX_BLUR, math.floor(blur or 0)))
+	local out = {}
+	for j = 1, n do
+		local r = round(j * k)
+		local weight = (n + 1 - j) / (3 * (n + 1))
+		for _, d in ipairs(M.BLUR_DIRECTIONS) do
+			out[#out + 1] = { dx = d[1] * r, dy = d[2] * r, weight = weight }
+		end
+	end
+	return out
+end
+
+-- Items moved by whole pixels (dx, dy), y up: new items, new point lists.
+function M.moved(items, dx, dy)
+	local out = {}
+	for i, it in ipairs(items) do
+		if it.kind == "rect" then
+			out[i] = { kind = "rect", x = it.x + dx, y = it.y + dy, w = it.w, h = it.h }
+		else
+			local pts = {}
+			for j = 1, #it.pts, 2 do
+				pts[j], pts[j + 1] = it.pts[j] + dx, it.pts[j + 1] + dy
+			end
+			out[i] = { kind = "poly", pts = pts }
+		end
+	end
+	return out
+end
+
+-- Everything one state draws, back to front:
+--   { { role = "blur" | "shadow" | "outline" | "fill", items }, ... }
 -- `s` holds the settings of the state without the prefix. `factor` scales the whole crosshair once
 -- more (the cursor flying back to the Helldiver shrinks); 1 when left out. Empty for "game" and "none".
+-- The shadow is the crosshair at shadow_size times the size, around the same centre, grown by the
+-- outline and the spread and moved by the offset. Each blur layer is that shadow moved by dx, dy and
+-- drawn at `weight` of the shadow opacity.
 function M.layers(s, factor)
 	if not M.drawn(s.shape) then return {} end
 	local k = (s.scale or 1) * (factor or 1)
 	local thickness, gap = s.thickness or 1, s.gap or 0
-	local parts = M.parts(s.shape, M.ARM * k, gap * k, thickness * k)
 	local c = M.centre(thickness * k)
-	-- Outline and shadow before the scale.
+	-- Outline, spread and offset before the scale.
 	local edge = s.outline and (s.outline_thickness or 0) or 0
 	local offset = s.shadow_offset or 0
-	local function items(grow, shift)
-		local out = M.rect_items(s.shape, thickness, gap, k, c, grow, shift)
+	local function items(grow, shift, z)
+		local parts = M.parts(s.shape, M.ARM * k * z, gap * k * z, thickness * k * z)
+		local out = M.rect_items(s.shape, thickness, gap, k, c, grow, shift, nil, z)
 		return M.items(parts, grow * k, shift * k, c, out)
 	end
 	local out = {}
-	if s.shadow then out[#out + 1] = { role = "shadow", items = items(edge, offset) } end
-	if s.outline and edge > 0 then out[#out + 1] = { role = "outline", items = items(edge, 0) } end
-	out[#out + 1] = { role = "fill", items = items(0, 0) }
+	if s.shadow then
+		local shadow = items(edge + (s.shadow_spread or 0), offset, s.shadow_size or 1)
+		for _, copy in ipairs(M.blur_copies(s.shadow_blur, k)) do
+			out[#out + 1] = { role = "blur", dx = copy.dx, dy = copy.dy, weight = copy.weight, items = M.moved(shadow, copy.dx, copy.dy) }
+		end
+		out[#out + 1] = { role = "shadow", items = shadow }
+	end
+	if s.outline and edge > 0 then out[#out + 1] = { role = "outline", items = items(edge, 0, 1) } end
+	out[#out + 1] = { role = "fill", items = items(0, 0, 1) }
 	return out
 end
 
@@ -254,10 +304,11 @@ function M.rgba(hex, opacity)
 	return { r, g, b, round(a * 255) }
 end
 
--- The color of a layer of a state.
-function M.color_of(s, role)
+-- The color of a layer of a state. weight: the share of the shadow opacity a blur layer takes.
+function M.color_of(s, role, weight)
 	local opacity = s.opacity or 1
 	if role == "shadow" then return M.rgba(s.shadow_color, (s.shadow_opacity or 0) * opacity) end
+	if role == "blur" then return M.rgba(s.shadow_color, (s.shadow_opacity or 0) * opacity * (weight or 0)) end
 	if role == "outline" then return M.rgba(s.outline_color, opacity) end
 	return M.rgba(s.color, opacity)
 end

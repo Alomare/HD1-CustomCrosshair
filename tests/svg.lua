@@ -2,8 +2,13 @@
 -- language of option_previews, and the filling itself ({{expr}} in attributes and text, data-if
 -- removing an element). The language is kept to what Obsidian supports: numbers, 'strings', option
 -- ids, + - * / %, == != < > <= >=, && || !, a ? b : c, parentheses, min max abs round floor ceil clamp.
--- No unary minus, so a template that leans on one fails here.
+-- No unary minus, so a template that leans on one fails here. The limits are the ones of the Launcher
+-- (app/src/mods/preview.ts): an expression of more than 400 characters, or nested more than 40 deep,
+-- gives nothing there, so it fails here.
 local M = {}
+
+M.MAX_EXPR = 400
+M.MAX_DEPTH = 40
 
 -- Expressions -------------------------------------------------------------------------------------
 
@@ -57,9 +62,20 @@ local FUNCTIONS = {
 	clamp = function(x, lo, hi) return math.max(lo, math.min(hi, x)) end,
 }
 
--- The value of `src` with option values `values`.
+-- The value of `src` with option values `values`. Depth counts as in the Launcher: one level for each
+-- primary (a number, a name, a call, a bracket or a "!") and one for each expression (the whole, each
+-- bracket, each argument, each branch of a ? :).
 function M.eval(src, values)
+	if #src > M.MAX_EXPR then error("expression longer than " .. M.MAX_EXPR .. " characters: " .. src, 0) end
 	local t, pos = tokens(src), 1
+	local depth = 0
+	local function deeper(f)
+		depth = depth + 1
+		if depth > M.MAX_DEPTH then error("expression nested deeper than " .. M.MAX_DEPTH .. ": " .. src, 0) end
+		local v = f()
+		depth = depth - 1
+		return v
+	end
 	local function peek() return t[pos] end
 	local function take(v)
 		local tok = t[pos]
@@ -69,7 +85,7 @@ function M.eval(src, values)
 	local function is(v) local tok = t[pos]; return tok and tok.k == "op" and tok.v == v end
 
 	local ternary
-	local function primary()
+	local function primary_at()
 		local tok = t[pos]
 		if not tok then error("unexpected end of: " .. src, 0) end
 		pos = pos + 1
@@ -98,10 +114,11 @@ function M.eval(src, values)
 		end
 		error("unexpected " .. tostring(tok.v) .. " in: " .. src, 0)
 	end
+	local function primary() return deeper(primary_at) end
 	local function unary()
 		if is("!") then
 			take("!")
-			return not truthy(unary())
+			return deeper(function() return not truthy(unary()) end)
 		end
 		if is("-") then error("unary minus is not in the template language: " .. src, 0) end
 		return primary()
@@ -146,16 +163,18 @@ function M.eval(src, values)
 		return v
 	end
 	ternary = function()
-		local c = either()
-		if is("?") then
-			take("?")
-			local a = ternary()
-			take(":")
-			local b = ternary()
-			if truthy(c) then return a end
-			return b
-		end
-		return c
+		return deeper(function()
+			local c = either()
+			if is("?") then
+				take("?")
+				local a = ternary()
+				take(":")
+				local b = ternary()
+				if truthy(c) then return a end
+				return b
+			end
+			return c
+		end)
 	end
 	local v = ternary()
 	if pos <= #t then error("text after the expression: " .. src, 0) end

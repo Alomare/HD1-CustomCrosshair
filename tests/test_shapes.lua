@@ -119,6 +119,76 @@ test("the_shadow_moves_down_and_right_and_takes_the_outline_size", function()
 	eq(rects(plain[1].items), rect_list({ { 6, -2, 8, 2 }, { -12, -2, 8, 2 }, { 0, 4, 2, 8 }, { 0, -14, 2, 8 } }), "shadow of the lines")
 end)
 
+test("spread_widens_the_shadow_on_every_side", function()
+	local base = settings({ shape = "cross", thickness = 2, gap = 4, outline = true, outline_thickness = 1, shadow = true, shadow_offset = 2 })
+	local wide = settings({ shape = "cross", thickness = 2, gap = 4, outline = true, outline_thickness = 1, shadow = true, shadow_offset = 2, shadow_spread = 2 })
+	local grown = {}
+	for _, it in ipairs(layer(shapes.layers(base), "shadow").items) do grown[#grown + 1] = { it.x - 2, it.y - 2, it.w + 4, it.h + 4 } end
+	eq(rects(layer(shapes.layers(wide), "shadow").items), rect_list(grown), "two pixels past the outline size")
+	eq(rects(layer(shapes.layers(wide), "outline").items), rects(layer(shapes.layers(base), "outline").items), "outline untouched")
+end)
+
+test("size_scales_the_shadow_round_the_centre_of_the_crosshair", function()
+	local big = settings({ shape = "cross", thickness = 2, gap = 4, shadow = true, shadow_offset = 1, shadow_size = 2 })
+	-- The crosshair at scale 2, moved down and to the right by the offset at scale 1.
+	local twice = layer(shapes.layers(settings({ shape = "cross", thickness = 2, gap = 4, scale = 2 })), "fill")
+	local moved = {}
+	for _, it in ipairs(twice.items) do moved[#moved + 1] = { it.x + 1, it.y - 1, it.w, it.h } end
+	eq(rects(layer(shapes.layers(big), "shadow").items), rect_list(moved), "shadow at twice the size")
+	eq(rects(layer(shapes.layers(big), "fill").items), rects(layer(shapes.layers(settings({ shape = "cross", thickness = 2, gap = 4 })), "fill").items), "lines untouched")
+	local ring = layer(shapes.layers(settings({ shape = "circle", thickness = 2, gap = 4, shadow = true, shadow_size = 0.5 })), "shadow")
+	near(ring.items[1].of.r_out, (1 + 4 + 8) * 0.5, "a ring at half the radius")
+	local dot = layer(shapes.layers(settings({ shape = "dot", thickness = 2, shadow = true, shadow_size = 1.5 })), "shadow")
+	near(dot.items[1].of.r, 3, "a dot at one and a half times")
+end)
+
+test("blur_adds_rings_of_fainter_copies_of_the_shadow", function()
+	local s = settings({ shape = "cross_dot", thickness = 2, gap = 4, shadow = true, shadow_offset = 2, shadow_blur = 2 })
+	local layers = shapes.layers(s)
+	local shadow = layer(layers, "shadow")
+	local copies = {}
+	for i, l in ipairs(layers) do
+		if l.role == "blur" then
+			copies[#copies + 1] = l
+			eq(i < 17 + 1, true, "copies come first, behind everything")
+		end
+	end
+	eq(#copies, 16, "two rings of eight")
+	local weights = {}
+	for _, l in ipairs(copies) do
+		local r = math.max(math.abs(l.dx), math.abs(l.dy))
+		eq(r == 1 or r == 2, true, "a pixel or two out")
+		weights[r] = l.weight
+		eq(#l.items, #shadow.items, "the whole shadow")
+		for i, it in ipairs(l.items) do
+			local base = shadow.items[i]
+			if it.kind == "rect" then
+				eq(it.x .. "," .. it.y .. "," .. it.w .. "," .. it.h, (base.x + l.dx) .. "," .. (base.y + l.dy) .. "," .. base.w .. "," .. base.h, "moved rect")
+			else
+				for j = 1, #it.pts, 2 do
+					near(it.pts[j], base.pts[j] + l.dx, "moved x")
+					near(it.pts[j + 1], base.pts[j + 1] + l.dy, "moved y")
+				end
+			end
+		end
+	end
+	near(weights[1], 2 / 9, "inner ring")
+	near(weights[2], 1 / 9, "outer ring, fainter")
+	local c = shapes.color_of(s, "blur", weights[1])
+	eq(c[4], shapes.round(0.5 * 2 / 9 * 255), "a share of the shadow opacity")
+end)
+
+test("blur_rings_follow_the_scale_and_stop_at_three", function()
+	local copies = shapes.blur_copies(3, 2)
+	eq(#copies, 24, "three rings")
+	eq(copies[#copies].dx ~= 0 and math.abs(copies[#copies].dx), 6, "third ring six pixels out at scale 2")
+	eq(#shapes.blur_copies(9, 1), 8 * shapes.MAX_BLUR, "no more than three rings")
+	eq(#shapes.blur_copies(0, 1), 0, "none")
+	eq(#shapes.blur_copies(1.5, 1), 8, "whole pixels only")
+	local s = settings({ shape = "cross", shadow = false, shadow_blur = 3 })
+	for _, l in ipairs(shapes.layers(s)) do eq(l.role ~= "blur", true, "no blur without the shadow") end
+end)
+
 test("circles_are_rings_of_quads_round_the_centre", function()
 	local fill = layer(shapes.layers(settings({ shape = "circle", thickness = 1, gap = 4 })), "fill")
 	local n = shapes.sides(12.5)

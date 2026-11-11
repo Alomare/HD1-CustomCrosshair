@@ -267,7 +267,7 @@ test("the_game_cursor_image_stays_when_aiming_keeps_the_game_cursor", function()
 end)
 
 test("drawing_a_frame_makes_no_tables", function()
-	setup({ aim_shape = "circle_cross", aim_shadow = true })
+	setup({ aim_shape = "circle_cross", aim_shadow = true, aim_shadow_blur = 3, aim_shadow_size = 1.2, aim_shadow_spread = 1 })
 	local k = kit()
 	k.rect, k.poly, k.layer, k.opacity = function() end, function() end, function() end, function() end
 	frame()
@@ -276,6 +276,259 @@ test("drawing_a_frame_makes_no_tables", function()
 	collectgarbage("stop")
 	local before = collectgarbage("count")
 	for _ = 1, 500 do frame() end
+	local grew = collectgarbage("count") - before
+	collectgarbage("restart")
+	jit.on()
+	eq(grew < 1, true, "KB allocated over 500 frames: " .. grew)
+end)
+
+test("blur_copies_draw_behind_the_crosshair_on_the_shadow_layer", function()
+	setup({ aim_shape = "cross", aim_outline = false, aim_shadow = true, aim_shadow_offset = 1, aim_shadow_blur = 1 })
+	frame()
+	-- Right arm 8 x 2 from (505, 299); the shadow one pixel down and to the right, copies a pixel round that.
+	local shadow = has_rect(860, 506, 298, 8, 2)
+	assert(shadow, "shadow")
+	eq(shadow.c[4], 128, "shadow at half strength")
+	local copy = has_rect(860, 507, 298, 8, 2)
+	assert(copy, "a copy a pixel to the right")
+	eq(copy.c[4], math.floor(0.5 / 6 * 255 + 0.5), "a sixth of the shadow")
+	eq(#rects_at(860), 4 * 9, "the shadow and eight copies of each arm")
+end)
+
+-- Obsidian API ------------------------------------------------------------------------------------
+
+local ME, MATE, BUG, ROCK = "my avatar", "teammate", "bug", "rock"
+local RIFLE, GRENADE = "rifle", "grenade"
+
+-- A stand-in for Obsidian API: hit and kill listeners kept for the tests to call, my_unit, and the
+-- inventory of this player.
+local function fake_api()
+	local api = { listeners = { hit = {}, kill = {} } }
+	api.game = {
+		my_unit = function() return ME end,
+		master = function(unit, component)
+			if unit == ME and component == "inventory" then return { primary_weapon = RIFLE } end
+			return nil
+		end,
+	}
+	api.combat = { on_hit = function(fn) api.listeners.hit[#api.listeners.hit + 1] = fn return true end }
+	api.events = {
+		on = function(name, fn)
+			if name ~= "on_enemy_killed" then return false, "unexpected" end
+			api.listeners.kill[#api.listeners.kill + 1] = fn
+			return true
+		end,
+	}
+	function api.hit(victim, hit) for _, fn in ipairs(api.listeners.hit) do fn(victim, hit) end end
+	function api.kill(victim, attacker, owner) for _, fn in ipairs(api.listeners.kill) do fn(victim, attacker, owner) end end
+	return api
+end
+
+local function with_api(options)
+	local api = fake_api()
+	IMPORTS["obsidian.api"] = api
+	rawset(_G, "EntityAux", { has_component = function(unit, name) return name == "enemy" and (unit == BUG) end })
+	setup(options)
+	return api
+end
+
+local function polys_at(z)
+	local out = {}
+	for _, c in ipairs(kit().calls) do
+		if c[1] == "poly" and c.z == z then out[#out + 1] = c end
+	end
+	return out
+end
+
+local function centre_of(pts)
+	local x, y = 0, 0
+	for i = 1, #pts, 2 do x, y = x + pts[i], y + pts[i + 1] end
+	return x / (#pts / 2), y / (#pts / 2)
+end
+
+local RIFLE_HIT = { damage = 10, owner_unit = ME, attacker_unit = RIFLE, slot = "primary_weapon" }
+
+test("a_hit_by_this_player_flashes_four_lines_round_the_crosshair", function()
+	local api = with_api({ aim_shape = "cross", aim_outline = false })
+	frame()
+	eq(#polys_at(864), 0, "nothing before a hit")
+	api.hit(BUG, RIFLE_HIT)
+	kit().calls = {}
+	frame()
+	local lines = polys_at(864)
+	eq(#lines, 4, "four lines in front")
+	eq(#polys_at(863), 4, "outlines behind")
+	for _, l in ipairs(lines) do
+		eq(l.c[1] .. "," .. l.c[2] .. "," .. l.c[3] .. "," .. l.c[4], "255,255,255,255", "white")
+		eq(l.alpha, 1, "full strength on the first frame")
+		-- The aiming cross is 2 thick: the centre sits on the corner of pixel (500, 300).
+		local x, y = centre_of(l[2])
+		near(math.sqrt((x - 500) ^ 2 + (y - 300) ^ 2), 6 + 6 / 2, "middle of a line from the centre", 1e-9)
+		near(math.abs(x - 500), math.abs(y - 300), "on a diagonal", 1e-9)
+	end
+	eq(polys_at(863)[1].c[1] .. "," .. polys_at(863)[1].c[4], "0,255", "black outline")
+	eq(kit().alpha, 1, "opacity back")
+end)
+
+test("the_mark_fades_out_over_the_time_set", function()
+	local api = with_api({ hitmarker_time = 0.4 })
+	rawset(_G, "ENGINE_DT", 0.1)
+	api.hit(BUG, RIFLE_HIT)
+	local strength = {}
+	for i = 1, 5 do
+		kit().calls = {}
+		frame()
+		local lines = polys_at(864)
+		strength[i] = #lines > 0 and lines[1].alpha or 0
+	end
+	near(strength[1], 1, "at once")
+	near(strength[2], 0.75, "a tenth of a second in")
+	near(strength[4], 0.25, "three tenths in")
+	near(strength[5], 0, "gone after the time", 1e-9)
+	api.hit(BUG, RIFLE_HIT)
+	kit().calls = {}
+	frame()
+	near(polys_at(864)[1].alpha, 1, "a new hit starts again")
+end)
+
+test("hits_by_others_on_players_or_off_target_show_nothing", function()
+	local api = with_api()
+	api.hit(BUG, { damage = 10, owner_unit = MATE, attacker_unit = "their rifle", slot = "primary_weapon" })
+	api.hit(MATE, RIFLE_HIT)
+	api.hit(ROCK, RIFLE_HIT)
+	api.hit(BUG, { damage = 10, owner_unit = ME, attacker_unit = GRENADE })
+	frame()
+	eq(#polys_at(864), 0, "no mark: a teammate, a teammate hit, not an enemy, a grenade with weapons in hand only")
+end)
+
+test("everything_counts_grenades_and_sentries_too", function()
+	local api = with_api({ hitmarker_from = "all" })
+	api.hit(BUG, { damage = 10, owner_unit = MATE, attacker_unit = GRENADE })
+	frame()
+	eq(#polys_at(864), 0, "still only this player")
+	api.hit(BUG, { damage = 10, owner_unit = ME, attacker_unit = GRENADE })
+	frame()
+	eq(#polys_at(864), 4, "grenade hit")
+end)
+
+test("a_kill_shows_the_kill_color_over_a_hit", function()
+	local api = with_api({ hitmarker_kill_color = "#3050ff" })
+	api.hit(BUG, RIFLE_HIT)
+	api.kill(BUG, RIFLE, ME)
+	frame()
+	local lines = polys_at(864)
+	eq(#lines, 4, "one mark")
+	eq(lines[1].c[1] .. "," .. lines[1].c[2] .. "," .. lines[1].c[3], "48,80,255", "kill color")
+end)
+
+test("kills_by_others_or_from_other_things_show_nothing", function()
+	local api = with_api()
+	api.kill(BUG, "their rifle", MATE)
+	api.kill(BUG, GRENADE, ME)
+	frame()
+	eq(#polys_at(864), 0, "a teammate kill, a grenade kill with weapons in hand only")
+	fresh_obsidian()
+	local all = with_api({ hitmarker_from = "all" })
+	all.kill(BUG, GRENADE, ME)
+	frame()
+	eq(#polys_at(864), 4, "the grenade kill counts with everything")
+	eq(polys_at(864)[1].c[2], 45, "TPC red")
+end)
+
+test("hits_only_or_kills_only_listen_to_one", function()
+	local api = with_api({ hitmarker_kills = false })
+	eq(#api.listeners.hit, 1, "hits")
+	eq(#api.listeners.kill, 0, "no kills")
+	fresh_obsidian()
+	api = with_api({ hitmarker_hits = false })
+	eq(#api.listeners.hit, 0, "no hits")
+	eq(#api.listeners.kill, 1, "kills")
+end)
+
+test("hitmarker_off_listens_to_nothing", function()
+	for _, options in ipairs({ { hitmarker = false }, { hitmarker_hits = false, hitmarker_kills = false } }) do
+		fresh_obsidian()
+		local api = with_api(options)
+		eq(#api.listeners.hit + #api.listeners.kill, 0, "no listeners")
+		frame()
+		eq(#polys_at(863) + #polys_at(864), 0, "nothing drawn")
+	end
+	fresh_obsidian()
+	local api = with_api({ hitmarker = false, idle_shape = "game", aim_shape = "game" })
+	eq(#FRAMES, 0, "with both states on the game cursor, no frame function either")
+	eq(#api.listeners.hit, 0, "no listeners")
+end)
+
+test("without_obsidian_api_the_crosshair_still_draws", function()
+	setup()
+	local said = false
+	for _, l in ipairs(LOGS) do said = said or l:find("needs Obsidian API", 1, true) ~= nil end
+	eq(said, true, "logged")
+	frame()
+	assert(has_rect(862, 505, 299, 8, 2), "crosshair at the mouse")
+end)
+
+test("both_states_on_game_still_flash_the_mark_at_the_mouse", function()
+	local claimed = false
+	IMPORTS["alomare.integratedthirdperson"] = { claim_crosshair = function() claimed = true end, crosshair = function() return nil end }
+	local api = with_api({ idle_shape = "game", aim_shape = "game" })
+	eq(#HOOKS, 0, "game cursors left alone")
+	startup()
+	eq(claimed, false, "Integrated Third Person keeps the built-in crosshair")
+	api.hit(BUG, RIFLE_HIT)
+	frame()
+	eq(#rects_at(), 0, "no crosshair")
+	local lines = polys_at(864)
+	eq(#lines, 4, "the mark")
+	local x, y = centre_of(lines[1][2])
+	eq(x > 500 and y > 300, true, "round the mouse")
+end)
+
+test("in_third_person_the_mark_goes_round_the_aim_point", function()
+	local spot = { x = 960, y = 540, aiming = true }
+	IMPORTS["alomare.integratedthirdperson"] = { claim_crosshair = function() end, crosshair = function() return spot end }
+	local api = with_api({ hitmarker_gap = 4, hitmarker_size = 4 })
+	startup()
+	CursorManager.shown = false
+	api.hit(BUG, RIFLE_HIT)
+	frame()
+	local lines = polys_at(864)
+	eq(#lines, 4, "the mark")
+	for _, l in ipairs(lines) do
+		local x, y = centre_of(l[2])
+		near(math.sqrt((x - 960) ^ 2 + (y - 540) ^ 2), 6, "round the aim point", 1e-9)
+	end
+	CursorManager.shown, CursorManager.current_cursor = true, "hud/cursors/menu"
+	kit().calls = {}
+	frame()
+	eq(#polys_at(864), 0, "hidden under a menu")
+end)
+
+test("the_mark_sits_on_the_centre_of_an_odd_crosshair", function()
+	local api = with_api({ aim_thickness = 1 })
+	api.hit(BUG, RIFLE_HIT)
+	frame()
+	-- Thickness 1: the centre is the middle of pixel (500, 300).
+	local x, y = centre_of(polys_at(864)[1][2])
+	near(math.abs(x - 500.5), math.abs(y - 300.5), "on a diagonal through the pixel middle", 1e-9)
+end)
+
+test("a_frame_with_a_mark_up_makes_no_tables", function()
+	local api = with_api({ aim_shadow = true, hitmarker_time = 1.5 })
+	rawset(_G, "ENGINE_DT", 0.001)
+	local k = kit()
+	k.rect, k.poly, k.layer, k.opacity = function() end, function() end, function() end, function() end
+	api.hit(BUG, RIFLE_HIT)
+	api.kill(BUG, RIFLE, ME)
+	frame()
+	jit.off()
+	collectgarbage("collect")
+	collectgarbage("stop")
+	local before = collectgarbage("count")
+	for i = 1, 500 do
+		if i % 50 == 0 then api.hit(BUG, RIFLE_HIT) end
+		frame()
+	end
 	local grew = collectgarbage("count") - before
 	collectgarbage("restart")
 	jit.on()

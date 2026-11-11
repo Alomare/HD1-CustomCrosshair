@@ -36,9 +36,10 @@ local function check_player(text, where)
 	if text:find("[^%s] %- ") then error(where .. ": dash in: " .. text, 2) end
 end
 
-local FILES = { "obsidian.json", "README.md", "main.lua", "src/shapes.lua", "tools/build_previews.lua",
+local FILES = { "obsidian.json", "README.md", "main.lua", "src/shapes.lua", "src/hitmarker.lua", "tools/build_previews.lua",
 	"tests/run.lua", "tests/json.lua", "tests/svg.lua", "tests/test_shapes.lua", "tests/test_preview.lua",
-	"tests/test_manifest.lua", "tests/test_main.lua", "preview/idle.svg", "preview/aim.svg" }
+	"tests/test_manifest.lua", "tests/test_main.lua", "tests/test_hitmarker.lua", "tests/test_writing.lua",
+	"preview/idle.svg", "preview/aim.svg", "preview/hitmarker.svg" }
 
 test("no_file_says_it_is_or_belonging_to_it", function()
 	for _, path in ipairs(FILES) do
@@ -74,7 +75,7 @@ test("readme_keeps_the_rules", function()
 end)
 
 test("preview_captions_keep_the_rules", function()
-	for _, path in ipairs({ "preview/idle.svg", "preview/aim.svg" }) do
+	for _, path in ipairs({ "preview/idle.svg", "preview/aim.svg", "preview/hitmarker.svg" }) do
 		for caption in read(path):gmatch(">([^<{]+)<") do
 			if caption:find("%a") then check_player(caption, path) end
 		end

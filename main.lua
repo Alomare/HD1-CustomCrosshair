@@ -1,5 +1,6 @@
 -- Custom Crosshair: the aim cursor of the game replaced with a crosshair drawn from shapes, one look
--- between shots (idle) and one while aiming, set in the Options tab of the mod in Obsidian.
+-- between shots (idle) and one while aiming, set in the Options tab of the mod in Obsidian, and a
+-- hitmarker that flashes around the crosshair on hits and kills.
 --
 -- The game shows the aim cursor as a hardware cursor: CursorManager hands a path to
 -- Window.set_cursor, "hud/cursors/game" while aiming, "game_inactive" between shots, five
@@ -14,15 +15,24 @@
 -- shots and draws the cursor image flying back to the Helldiver (InputComponent.update_masters,
 -- Gui.bitmap_uv with "cursor_game"). That image is caught while the input code runs, and the aiming
 -- crosshair flies back in place of the image, shrinking and fading the same way.
+--
+-- The hitmarker hears hits from Obsidian API (combat.on_hit, every hit a player of this machine lands
+-- that costs health, whichever machine runs the enemy) and kills from the event the game sends to the
+-- machine of the killer (on_enemy_killed). Only the main player of this machine counts, never a
+-- teammate, a bot or a second controller. With the hitmarker off, nothing listens.
 local shapes = obsidian.module("src/shapes")
+local hitmarker = obsidian.module("src/hitmarker")
 
-local VERSION = "0.1.1"
+local VERSION = "0.2.0"
 local MOD_ID = "alomare.customcrosshair"
 local ITP_ID = "alomare.integratedthirdperson"
+local API_ID = "obsidian.api"
 
--- Under the in-game menu of Obsidian (876). Shadow, outline and lines take one layer each.
+-- Under the in-game menu of Obsidian (876). The shadow with the blur copies, the outline and the lines
+-- take one layer each, then the outline and the lines of the hitmarker.
 local LAYER = 860
-local ROLE_LAYER = { shadow = 0, outline = 1, fill = 2 }
+local ROLE_LAYER = { blur = 0, shadow = 0, outline = 1, fill = 2 }
+local MARK_LAYER = { outline = 3, fill = 4 }
 
 local GAME = "hud/cursors/game"
 local INACTIVE = "hud/cursors/game_inactive"
@@ -55,25 +65,45 @@ local settings = {
 }
 -- States whose game cursor goes: every shape but "game".
 local hide = { idle = settings.idle.shape ~= "game", aim = settings.aim.shape ~= "game" }
-if not (hide.idle or hide.aim) then
+local crosshair = hide.idle or hide.aim
+
+-- The hitmarker settings, or nil while it is off or Obsidian API can't tell hits.
+local marker = hitmarker.settings(obsidian.settings.get)
+local api = nil
+if hitmarker.shown(marker) then
+	local ok, mod = pcall(obsidian.import, API_ID)
+	if ok and type(mod) == "table" and type(mod.combat) == "table" and type(mod.combat.on_hit) == "function"
+		and type(mod.events) == "table" and type(mod.game) == "table" then
+		api = mod
+	else
+		obsidian.log("custom crosshair: the hitmarker needs Obsidian API 1.14.0 or later, so it stays off")
+	end
+end
+if not api then marker = nil end
+
+if not (crosshair or marker) then
 	obsidian.log("custom crosshair: both states keep the game cursor")
 	return export
 end
 
 -- A look: the layers of shapes.layers with a color each, and a point buffer for every polygon, so
--- drawing a frame makes no tables.
+-- drawing a frame makes no tables. `centre` is where the centre of the crosshair sits in the aim
+-- pixel, for the hitmarker.
 local function compile(s, factor)
 	local look = shapes.layers(s, factor)
 	for _, layer in ipairs(look) do
-		layer.color = shapes.color_of(s, layer.role)
+		layer.color = shapes.color_of(s, layer.role, layer.weight)
 		layer.z = LAYER + (ROLE_LAYER[layer.role] or 2)
 		for _, item in ipairs(layer.items) do
 			if item.kind == "poly" then item.buf = {} end
 		end
 	end
+	-- As shapes.layers works it out.
+	look.centre = shapes.centre((s.thickness or 1) * ((s.scale or 1) * (factor or 1)))
 	return look
 end
 
+-- A state left on "game" compiles to an empty look: the game draws that cursor.
 local looks = { idle = compile(settings.idle), aim = compile(settings.aim) }
 
 -- In third person the game shows no cursor, so a state left on "game" takes the default look there.
@@ -140,9 +170,12 @@ local function covered(path)
 	return nil
 end
 
-obsidian.hook("Window", "set_cursor", function(original, path, ...)
-	return original(covered(path) or path, ...)
-end)
+-- With both states on "game" the cursors stay as they are, and only the hitmarker draws.
+if crosshair then
+	obsidian.hook("Window", "set_cursor", function(original, path, ...)
+		return original(covered(path) or path, ...)
+	end)
+end
 
 -- "idle" or "aim" while CursorManager shows a game cursor, nil otherwise (a menu, the map, hidden).
 -- During a transition the cursor it is heading for counts.
@@ -196,8 +229,10 @@ if hide.aim then
 	end)
 end
 
--- Integrated Third Person: where shots go while it steers the view.
-local itp = nil
+-- Integrated Third Person: where shots go while it steers the view. `claimed` while this mod draws the
+-- crosshair there; with both states on "game" Integrated Third Person keeps the built-in crosshair, and
+-- the hitmarker goes around that one.
+local itp, claimed = nil, false
 local function third_person()
 	if not itp then return nil end
 	local ok, spot = pcall(itp.crosshair)
@@ -209,11 +244,16 @@ local function join_itp()
 	if option("third_person", true) == false then return end
 	local ok, mod = pcall(obsidian.import, ITP_ID)
 	if not (ok and type(mod) == "table" and type(mod.crosshair) == "function") then return end
-	if type(mod.claim_crosshair) == "function" then
-		local claimed, err = pcall(mod.claim_crosshair, MOD_ID)
-		if not claimed then obsidian.log("custom crosshair: Integrated Third Person refused the crosshair: " .. tostring(err)) end
-	end
 	itp = mod
+	if not crosshair then
+		obsidian.log("custom crosshair: hitmarker around the crosshair of Integrated Third Person")
+		return
+	end
+	if type(mod.claim_crosshair) == "function" then
+		local done, err = pcall(mod.claim_crosshair, MOD_ID)
+		if not done then obsidian.log("custom crosshair: Integrated Third Person refused the crosshair: " .. tostring(err)) end
+	end
+	claimed = true
 	obsidian.log("custom crosshair: drawing the crosshair of Integrated Third Person")
 end
 
@@ -227,8 +267,8 @@ end
 -- 0 (idle) to 1 (aiming) while a crosshair is up, and is nil while none is.
 local FADE = 0.08
 local blend = nil
--- The top-down looks: a state left on "game" has none, as the game draws that cursor.
-local top_looks = { idle = hide.idle and looks.idle or nil, aim = hide.aim and looks.aim or nil }
+-- The top-down looks: a state left on "game" has an empty one, as the game draws that cursor.
+local top_looks = looks
 
 local function frame_time()
 	local dt = rawget(_G, "ENGINE_DT")
@@ -236,7 +276,8 @@ local function frame_time()
 	return math.min(dt, 0.1)
 end
 
--- Moves the blend toward the state shown now, then draws one look, or both while they cross.
+-- Moves the blend toward the state shown now, then draws one look, or both while they cross. Answers
+-- where the centre sits in the aim pixel, from the look that shows the most.
 local function draw_state(pick, aiming, x, y)
 	local target = aiming and 1 or 0
 	if blend == nil then
@@ -253,22 +294,117 @@ local function draw_state(pick, aiming, x, y)
 		draw(pick.idle, x, y, 1 - blend)
 		draw(pick.aim, x, y, blend)
 	end
+	return (blend >= 0.5 and pick.aim or pick.idle).centre
+end
+
+-- The hitmarker: a look for each kind of mark and each place the centre can sit in the aim pixel, and
+-- the clock (seconds) at the last hit and the last kill. The clock moves only while the hitmarker is on.
+local clock, hit_at, kill_at = 0, nil, nil
+local marks = nil
+
+local function compile_mark(kind, c)
+	local look = hitmarker.layers(marker, kind, c)
+	for _, layer in ipairs(look) do
+		layer.color = shapes.rgba(layer.hex, 1)
+		layer.z = LAYER + MARK_LAYER[layer.role]
+		for _, item in ipairs(layer.items) do item.buf = {} end
+	end
+	return look
+end
+
+-- The mark showing now around the aim point (x, y), with the centre at c in the aim pixel. A kill
+-- shows over a hit.
+local function draw_marker(x, y, c)
+	local look, age
+	if kill_at and clock - kill_at < marker.time then
+		look, age = marks.kill, clock - kill_at
+	elseif hit_at and clock - hit_at < marker.time then
+		look, age = marks.hit, clock - hit_at
+	else
+		return
+	end
+	draw(look[c] or look[0.5], x, y, hitmarker.fade(age, marker.time))
+end
+
+-- Whether `owner` is the unit of the main player of this machine.
+local function mine(owner)
+	if owner == nil then return false end
+	local ok, player = pcall(api.game.my_unit)
+	return ok and player ~= nil and owner == player
+end
+
+local function enemy(unit)
+	local aux = rawget(_G, "EntityAux")
+	if unit == nil or type(aux) ~= "table" then return false end
+	local ok, yes = pcall(aux.has_component, unit, "enemy")
+	return ok and yes ~= nil and yes ~= false
+end
+
+-- Whether `attacker` is a weapon `owner` holds, as Obsidian API tells the slot of a hit.
+local SLOTS = { "primary_weapon", "sidearm_weapon", "support_weapon" }
+local function held(owner, attacker)
+	if attacker == nil then return false end
+	local ok, inventory = pcall(api.game.master, owner, "inventory")
+	if not ok or type(inventory) ~= "table" then return false end
+	for i = 1, #SLOTS do
+		if inventory[SLOTS[i]] == attacker then return true end
+	end
+	return false
+end
+
+if marker then
+	marks = {}
+	for _, kind in ipairs({ "hit", "kill" }) do
+		marks[kind] = { [0] = compile_mark(kind, 0), [0.5] = compile_mark(kind, 0.5) }
+	end
+	local weapons_only = marker.from ~= "all"
+	if marker.hits then
+		api.combat.on_hit(function(victim, hit)
+			if type(hit) ~= "table" or not mine(hit.owner_unit) then return end
+			if weapons_only and hit.slot == nil then return end
+			if enemy(victim) then hit_at = clock end
+		end)
+	end
+	if marker.kills then
+		local ok, why = api.events.on("on_enemy_killed", function(unit, attacker, owner)
+			if not mine(owner) then return end
+			if weapons_only and not held(owner, attacker) then return end
+			kill_at = clock
+		end)
+		if ok == false then obsidian.log("custom crosshair: Obsidian API refused the kill event (" .. tostring(why) .. "), so kills show no mark") end
+	end
 end
 
 local function frame()
 	local cm = rawget(_G, "CursorManager")
 	local spot = third_person()
+	-- Where the hitmarker goes: the aim point of the crosshair, while one is up.
+	local mx, my, mc = nil, nil, 0.5
 	if spot then
-		if menu_up(cm) then blend = nil else draw_state(third_looks, spot.aiming, spot.x, spot.y) end
+		if menu_up(cm) then
+			blend = nil
+		else
+			if claimed then mc = draw_state(third_looks, spot.aiming, spot.x, spot.y) end
+			mx, my = spot.x, spot.y
+		end
 	else
 		local state = cursor_state(cm)
 		local x, y = nil, nil
 		if state then x, y = mouse() end
-		if x then draw_state(top_looks, state == "aim", x, y) else blend = nil end
+		if x then
+			mc = draw_state(top_looks, state == "aim", x, y)
+			mx, my = x, y
+		else
+			blend = nil
+		end
 	end
 	if flight.on then
 		flight.on = false
 		if not spot then draw(flying_look(flight.f), flight.x, flight.y, flight.f * flight.f) end
+	end
+	if marker then
+		if mx then draw_marker(mx, my, mc) end
+		clock = clock + frame_time()
 	end
 end
 
@@ -281,6 +417,12 @@ obsidian.on_frame(function()
 	end
 end)
 
-obsidian.log(string.format("custom crosshair: idle %s, aiming %s", settings.idle.shape, settings.aim.shape))
+local function marker_text()
+	if not marker then return "hitmarker off" end
+	local on = marker.hits and marker.kills and "hits and kills" or marker.hits and "hits" or "kills"
+	return "hitmarker on " .. on .. " from " .. (marker.from == "all" and "everything" or "weapons in hand")
+end
+
+obsidian.log(string.format("custom crosshair %s: idle %s, aiming %s, %s", VERSION, settings.idle.shape, settings.aim.shape, marker_text()))
 
 return export

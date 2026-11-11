@@ -1,12 +1,12 @@
 {
   "obsidian": 1,
   "id": "alomare.customcrosshair",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "name": {
     "en": "Custom Crosshair"
   },
   "description": {
-    "en": "Replaces the aim cursor with a crosshair built from shapes, one look between shots and one while aiming: shape, scale, gap, thickness, color, opacity, outline and shadow, with a live preview. Works in the top-down view and with Integrated Third Person."
+    "en": "Replaces the aim cursor with a crosshair built from shapes, one look between shots and one while aiming: shape, scale, gap, thickness, color, opacity, outline and a shadow that can be soft, with a live preview. A hitmarker flashes at the crosshair on hits and kills. Works in the top-down view and with Integrated Third Person."
   },
   "authors": [
     "Alomare"
@@ -15,7 +15,11 @@
   "entry": "main.lua",
   "source": "https://github.com/Alomare/HD1-CustomCrosshair",
   "modules": [
-    "src/shapes.lua"
+    "src/shapes.lua",
+    "src/hitmarker.lua"
+  ],
+  "requires": [
+    "obsidian.api"
   ],
   "loader_api": 1,
   "option_groups": [
@@ -23,13 +27,17 @@
     { "id": "idle", "label": { "en": "Idle" },
       "description": { "en": "Between shots. The game shows a cursor here only while the crosshair option in the game settings keeps the crosshair visible; otherwise the cursor hides between shots." } },
     { "id": "aim", "label": { "en": "Aiming" },
-      "description": { "en": "While the aim button, fire or a throw is held." } }
+      "description": { "en": "While the aim button, fire or a throw is held." } },
+    { "id": "hitmarker", "label": { "en": "Hitmarker" },
+      "description": { "en": "Lines that flash around the crosshair when a shot from this player hurts or kills an enemy, then fade out. Hits from teammates never show. The hits come from Obsidian API, which switches on with Custom Crosshair." } }
   ],
   "option_previews": [
     { "id": "idle_preview", "group": "idle", "template": "preview/idle.svg", "width": 240, "height": 140,
       "label": { "en": "Idle crosshair" } },
     { "id": "aim_preview", "group": "aim", "template": "preview/aim.svg", "width": 240, "height": 140,
-      "label": { "en": "Aiming crosshair" } }
+      "label": { "en": "Aiming crosshair" } },
+    { "id": "hitmarker_preview", "group": "hitmarker", "template": "preview/hitmarker.svg", "width": 240, "height": 140,
+      "label": { "en": "Hit and kill marks" } }
   ],
   "options": [
     { "id": "enabled", "type": "toggle", "default": true, "group": "general",
@@ -86,6 +94,15 @@
     { "id": "idle_shadow_offset", "type": "number", "default": 2, "min": 1, "max": 6, "step": 0.5, "group": "idle", "visible_when": { "idle_shadow": true },
       "label": { "en": "Idle shadow offset (px)" },
       "description": { "en": "Distance down and to the right." } },
+    { "id": "idle_shadow_size", "type": "number", "default": 1, "min": 0.5, "max": 2, "step": 0.05, "group": "idle", "visible_when": { "idle_shadow": true },
+      "label": { "en": "Idle shadow size" },
+      "description": { "en": "Scales the shadow around the center of the crosshair. Below 1 the shadow shrinks inside the lines; above 1 it reaches past them." } },
+    { "id": "idle_shadow_spread", "type": "number", "default": 0, "min": 0, "max": 6, "step": 0.5, "group": "idle", "visible_when": { "idle_shadow": true },
+      "label": { "en": "Idle shadow spread (px)" },
+      "description": { "en": "Widens the shadow by this many pixels on every side, on top of the outline width." } },
+    { "id": "idle_shadow_blur", "type": "number", "default": 0, "min": 0, "max": 3, "step": 1, "group": "idle", "visible_when": { "idle_shadow": true },
+      "label": { "en": "Idle shadow blur (px)" },
+      "description": { "en": "Softens the shadow edge with fainter copies up to this many pixels out. 0 keeps a sharp edge." } },
 
     { "id": "aim_shape", "type": "choice", "default": "cross_dot", "group": "aim",
       "choices": [
@@ -133,7 +150,52 @@
       "label": { "en": "Aiming shadow opacity" } },
     { "id": "aim_shadow_offset", "type": "number", "default": 2, "min": 1, "max": 6, "step": 0.5, "group": "aim", "visible_when": { "aim_shadow": true },
       "label": { "en": "Aiming shadow offset (px)" },
-      "description": { "en": "Distance down and to the right." } }
+      "description": { "en": "Distance down and to the right." } },
+    { "id": "aim_shadow_size", "type": "number", "default": 1, "min": 0.5, "max": 2, "step": 0.05, "group": "aim", "visible_when": { "aim_shadow": true },
+      "label": { "en": "Aiming shadow size" },
+      "description": { "en": "Scales the shadow around the center of the crosshair. Below 1 the shadow shrinks inside the lines; above 1 it reaches past them." } },
+    { "id": "aim_shadow_spread", "type": "number", "default": 0, "min": 0, "max": 6, "step": 0.5, "group": "aim", "visible_when": { "aim_shadow": true },
+      "label": { "en": "Aiming shadow spread (px)" },
+      "description": { "en": "Widens the shadow by this many pixels on every side, on top of the outline width." } },
+    { "id": "aim_shadow_blur", "type": "number", "default": 0, "min": 0, "max": 3, "step": 1, "group": "aim", "visible_when": { "aim_shadow": true },
+      "label": { "en": "Aiming shadow blur (px)" },
+      "description": { "en": "Softens the shadow edge with fainter copies up to this many pixels out. 0 keeps a sharp edge." } },
+
+    { "id": "hitmarker", "type": "toggle", "default": true, "group": "hitmarker",
+      "label": { "en": "Hitmarker" },
+      "description": { "en": "Shows four short diagonal lines around the crosshair on a hit, at full strength first, then fading out over the time set below." } },
+    { "id": "hitmarker_hits", "type": "toggle", "default": true, "group": "hitmarker", "visible_when": { "hitmarker": true },
+      "label": { "en": "Show on hits" },
+      "description": { "en": "Every hit that costs an enemy health shows the mark in the hit color." } },
+    { "id": "hitmarker_kills", "type": "toggle", "default": true, "group": "hitmarker", "visible_when": { "hitmarker": true },
+      "label": { "en": "Show on kills" },
+      "description": { "en": "A kill shows the mark in the kill color, over any hit mark still fading." } },
+    { "id": "hitmarker_from", "type": "choice", "default": "weapons", "group": "hitmarker", "visible_when": { "hitmarker": true },
+      "choices": [
+        { "id": "weapons", "label": { "en": "Weapons in hand" } },
+        { "id": "all", "label": { "en": "Everything" } }
+      ],
+      "label": { "en": "Hits from" },
+      "description": { "en": "Weapons in hand counts shots from the primary, the sidearm and the support weapon. Rockets, grenades, mines, sentries and stratagems count only with Everything." } },
+    { "id": "hitmarker_color", "type": "color", "default": "#ffffff", "group": "hitmarker", "visible_when": { "hitmarker": true, "hitmarker_hits": true },
+      "label": { "en": "Hit color" } },
+    { "id": "hitmarker_kill_color", "type": "color", "default": "#ff2d23", "group": "hitmarker", "visible_when": { "hitmarker": true, "hitmarker_kills": true },
+      "label": { "en": "Kill color" } },
+    { "id": "hitmarker_size", "type": "number", "default": 6, "min": 2, "max": 20, "step": 1, "group": "hitmarker", "visible_when": { "hitmarker": true },
+      "label": { "en": "Hitmarker size (px)" },
+      "description": { "en": "Length of each line." } },
+    { "id": "hitmarker_gap", "type": "number", "default": 6, "min": 0, "max": 30, "step": 1, "group": "hitmarker", "visible_when": { "hitmarker": true },
+      "label": { "en": "Hitmarker gap (px)" },
+      "description": { "en": "Distance from the center of the crosshair to the inner end of each line, along the diagonal." } },
+    { "id": "hitmarker_thickness", "type": "number", "default": 2, "min": 1, "max": 6, "step": 0.5, "group": "hitmarker", "visible_when": { "hitmarker": true },
+      "label": { "en": "Hitmarker thickness (px)" },
+      "description": { "en": "Width of the lines." } },
+    { "id": "hitmarker_time", "type": "number", "default": 0.35, "min": 0.1, "max": 1.5, "step": 0.05, "group": "hitmarker", "visible_when": { "hitmarker": true },
+      "label": { "en": "Hitmarker time (s)" },
+      "description": { "en": "How long a mark takes to fade out. A new hit starts the fade again." } },
+    { "id": "hitmarker_outline", "type": "toggle", "default": true, "group": "hitmarker", "visible_when": { "hitmarker": true },
+      "label": { "en": "Hitmarker outline" },
+      "description": { "en": "A black border one pixel wide, so the mark stands out on light ground." } }
   ],
   "resources": []
 }
