@@ -23,7 +23,7 @@
 local shapes = obsidian.module("src/shapes")
 local hitmarker = obsidian.module("src/hitmarker")
 
-local VERSION = "0.2.0"
+local VERSION = "0.3.0"
 local MOD_ID = "alomare.customcrosshair"
 local ITP_ID = "alomare.integratedthirdperson"
 local API_ID = "obsidian.api"
@@ -315,15 +315,15 @@ end
 -- The mark showing now around the aim point (x, y), with the centre at c in the aim pixel. A kill
 -- shows over a hit.
 local function draw_marker(x, y, c)
-	local look, age
+	local look, age, kind
 	if kill_at and clock - kill_at < marker.time then
-		look, age = marks.kill, clock - kill_at
+		look, age, kind = marks.kill, clock - kill_at, "kill"
 	elseif hit_at and clock - hit_at < marker.time then
-		look, age = marks.hit, clock - hit_at
+		look, age, kind = marks.hit, clock - hit_at, "hit"
 	else
 		return
 	end
-	draw(look[c] or look[0.5], x, y, hitmarker.fade(age, marker.time))
+	draw(look[c] or look[0.5], x, y, hitmarker.fade(age, marker.time) * hitmarker.opacity(marker, kind))
 end
 
 -- Whether `owner` is the unit of the main player of this machine.

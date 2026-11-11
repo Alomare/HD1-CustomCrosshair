@@ -240,12 +240,16 @@ local function signed(sign, x, first)
 	return (first and "0-" or "-") .. x
 end
 
--- The four quads of hitmarker.quads, grown by `grow` pixels, as SVG polygons (y down).
-local function marker_quads(grow)
+-- The four quads of hitmarker.quads, grown by `grow` pixels, as SVG polygons (y down). k: the option
+-- that scales the mark (the kill mark), or nil.
+local function marker_quads(grow, k)
 	local g = grow ~= 0 and number(grow) or nil
-	local r0 = g and ("(" .. HM.gap .. "-" .. g .. ")") or HM.gap
-	local r1 = "(" .. HM.gap .. "+" .. HM.size .. (g and ("+" .. g) or "") .. ")"
-	local h = "(" .. HM.thickness .. "/2" .. (g and ("+" .. g) or "") .. ")"
+	local gap = k and ("(" .. HM.gap .. "*" .. k .. ")") or HM.gap
+	local reach = k and ("(" .. HM.gap .. "+" .. HM.size .. ")*" .. k) or (HM.gap .. "+" .. HM.size)
+	local half = k and (HM.thickness .. "*" .. k .. "/2") or (HM.thickness .. "/2")
+	local r0 = g and ("(" .. gap .. "-" .. g .. ")") or gap
+	local r1 = "(" .. reach .. (g and ("+" .. g) or "") .. ")"
+	local h = "(" .. half .. (g and ("+" .. g) or "") .. ")"
 	local out = {}
 	for _, d in ipairs(hitmarker.ARMS) do
 		local sx, sy = d[1], d[2]
@@ -265,15 +269,18 @@ end
 
 -- One mark, magnified about the middle of the aim pixel and moved to (x, y).
 local function mark(kind, x, y, zoom, color)
+	local kill = kind == "kill"
+	local k = kill and HM.kill_scale or nil
 	local lines = {
-		string.format('  <g data-role="%s" data-if="%s" transform="translate(%s %s) scale(%s)" shape-rendering="crispEdges">',
-			kind, kind == "kill" and HM.kills or HM.hits, E(x .. "-0.5*" .. zoom), E(y .. "-0.5*" .. zoom), E(zoom)),
+		string.format('  <g data-role="%s" data-if="%s" opacity="%s" transform="translate(%s %s) scale(%s)" shape-rendering="crispEdges">',
+			kind, kill and HM.kills or HM.hits, E(kill and HM.kill_opacity or HM.opacity),
+			E(x .. "-0.5*" .. zoom), E(y .. "-0.5*" .. zoom), E(zoom)),
 		string.format('    <g data-layer="outline" data-if="%s" fill="%s">', HM.outline, hitmarker.OUTLINE_COLOR),
 	}
-	for _, el in ipairs(marker_quads(hitmarker.OUTLINE)) do lines[#lines + 1] = "      " .. el end
+	for _, el in ipairs(marker_quads(hitmarker.OUTLINE, k)) do lines[#lines + 1] = "      " .. el end
 	lines[#lines + 1] = "    </g>"
 	lines[#lines + 1] = string.format('    <g data-layer="fill" fill="%s">', E(color))
-	for _, el in ipairs(marker_quads(0)) do lines[#lines + 1] = "      " .. el end
+	for _, el in ipairs(marker_quads(0, k)) do lines[#lines + 1] = "      " .. el end
 	lines[#lines + 1] = "    </g>"
 	lines[#lines + 1] = "  </g>"
 	return table.concat(lines, "\n")
@@ -281,8 +288,8 @@ end
 
 -- The hitmarker template: the mark of a hit on the left and of a kill on the right, at the same zoom.
 function M.build_hitmarker()
-	-- About how far a mark reaches from the centre, outline included.
-	local extent = "((" .. HM.gap .. "+" .. HM.size .. "+" .. HM.thickness .. "/2+2)*" .. SQ .. "+1)"
+	-- About how far the larger kill mark reaches from the centre, outline included.
+	local extent = "(((" .. HM.gap .. "+" .. HM.size .. "+" .. HM.thickness .. "/2)*" .. HM.kill_scale .. "+2)*" .. SQ .. "+1)"
 	local zoom = "clamp(floor(50/" .. extent .. "),1,4)"
 	local on = HM.on
 	local lines = {

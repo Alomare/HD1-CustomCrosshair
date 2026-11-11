@@ -359,11 +359,11 @@ test("a_hit_by_this_player_flashes_four_lines_round_the_crosshair", function()
 	eq(#lines, 4, "four lines in front")
 	eq(#polys_at(863), 4, "outlines behind")
 	for _, l in ipairs(lines) do
-		eq(l.c[1] .. "," .. l.c[2] .. "," .. l.c[3] .. "," .. l.c[4], "255,255,255,255", "white")
-		eq(l.alpha, 1, "full strength on the first frame")
+		eq(l.c[1] .. "," .. l.c[2] .. "," .. l.c[3] .. "," .. l.c[4], "255,45,35,255", "red")
+		near(l.alpha, 0.6, "hit opacity on the first frame")
 		-- The aiming cross is 2 thick: the centre sits on the corner of pixel (500, 300).
 		local x, y = centre_of(l[2])
-		near(math.sqrt((x - 500) ^ 2 + (y - 300) ^ 2), 6 + 6 / 2, "middle of a line from the centre", 1e-9)
+		near(math.sqrt((x - 500) ^ 2 + (y - 300) ^ 2), 6 + 12 / 2, "middle of a line from the centre", 1e-9)
 		near(math.abs(x - 500), math.abs(y - 300), "on a diagonal", 1e-9)
 	end
 	eq(polys_at(863)[1].c[1] .. "," .. polys_at(863)[1].c[4], "0,255", "black outline")
@@ -371,7 +371,7 @@ test("a_hit_by_this_player_flashes_four_lines_round_the_crosshair", function()
 end)
 
 test("the_mark_fades_out_over_the_time_set", function()
-	local api = with_api({ hitmarker_time = 0.4 })
+	local api = with_api({ hitmarker_time = 0.4, hitmarker_opacity = 1 })
 	rawset(_G, "ENGINE_DT", 0.1)
 	api.hit(BUG, RIFLE_HIT)
 	local strength = {}
@@ -419,6 +419,14 @@ test("a_kill_shows_the_kill_color_over_a_hit", function()
 	local lines = polys_at(864)
 	eq(#lines, 4, "one mark")
 	eq(lines[1].c[1] .. "," .. lines[1].c[2] .. "," .. lines[1].c[3], "48,80,255", "kill color")
+	near(lines[1].alpha, 1, "a kill shows solid")
+	for _, l in ipairs(lines) do
+		local x, y = centre_of(l[2])
+		near(math.sqrt((x - 500) ^ 2 + (y - 300) ^ 2), (6 + 12 / 2) * 1.5, "half again as far out", 1e-9)
+	end
+	-- The thickness grows with it: a line is 3 pixels wide.
+	local p = lines[1][2]
+	near(math.sqrt((p[7] - p[1]) ^ 2 + (p[8] - p[2]) ^ 2), 3, "kill line width", 1e-9)
 end)
 
 test("kills_by_others_or_from_other_things_show_nothing", function()

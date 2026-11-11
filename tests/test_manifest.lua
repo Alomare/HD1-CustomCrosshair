@@ -24,7 +24,7 @@ end
 test("identity_and_files", function()
 	local m = manifest()
 	eq(m.id, "alomare.customcrosshair", "id")
-	eq(m.version, "0.2.0", "version")
+	eq(m.version, "0.3.0", "version")
 	eq(m.scope, "client", "scope")
 	eq(m.entry, "main.lua", "entry")
 	eq(m.authors[1], "Alomare", "author")

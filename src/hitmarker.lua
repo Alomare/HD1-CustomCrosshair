@@ -19,14 +19,17 @@ M.FROM = { "weapons", "all" }
 -- Settings as obsidian.json declares them, and the option id of each. main.lua fills a missing value
 -- from here, and tests/test_manifest.lua keeps the two the same.
 M.DEFAULTS = {
-	on = true, hits = true, kills = true, from = "weapons", color = "#ffffff", kill_color = "#ff2d23",
-	size = 6, gap = 6, thickness = 2, time = 0.35, outline = true,
+	on = true, hits = true, kills = true, from = "weapons", color = "#ff2d23", kill_color = "#ff2d23",
+	opacity = 0.6, kill_opacity = 1, kill_scale = 1.5,
+	size = 12, gap = 6, thickness = 2, time = 0.35, outline = true,
 }
-M.KEYS = { "on", "hits", "kills", "from", "color", "kill_color", "size", "gap", "thickness", "time", "outline" }
+M.KEYS = { "on", "hits", "kills", "from", "color", "kill_color", "opacity", "kill_opacity", "kill_scale", "size", "gap",
+	"thickness", "time", "outline" }
 M.IDS = {
 	on = "hitmarker", hits = "hitmarker_hits", kills = "hitmarker_kills", from = "hitmarker_from",
-	color = "hitmarker_color", kill_color = "hitmarker_kill_color", size = "hitmarker_size", gap = "hitmarker_gap",
-	thickness = "hitmarker_thickness", time = "hitmarker_time", outline = "hitmarker_outline",
+	color = "hitmarker_color", kill_color = "hitmarker_kill_color", opacity = "hitmarker_opacity",
+	kill_opacity = "hitmarker_kill_opacity", kill_scale = "hitmarker_kill_scale", size = "hitmarker_size",
+	gap = "hitmarker_gap", thickness = "hitmarker_thickness", time = "hitmarker_time", outline = "hitmarker_outline",
 }
 
 -- The settings from get(id), the option values, with the defaults filling in what is missing or of the
@@ -52,11 +55,12 @@ M.ARMS = { { 1, 1 }, { -1, 1 }, { -1, -1 }, { 1, -1 } }
 
 -- The four lines around the centre (c, c) of the aim pixel, each grown by `grow` pixels on every side:
 -- quads { x1, y1, ..., x4, y4 }. A line runs along a diagonal from `gap` to `gap + size` pixels out
--- from the centre and is `thickness` wide.
-function M.quads(s, c, grow)
+-- from the centre and is `thickness` wide, all three times k (the kill mark is larger; 1 for a hit).
+function M.quads(s, c, grow, k)
+	k = k or 1
 	local q = M.SQRT_HALF
-	local r0, r1 = s.gap - grow, s.gap + s.size + grow
-	local h = s.thickness / 2 + grow
+	local r0, r1 = s.gap * k - grow, (s.gap + s.size) * k + grow
+	local h = s.thickness * k / 2 + grow
 	local out = {}
 	for i, d in ipairs(M.ARMS) do
 		local sx, sy = d[1], d[2]
@@ -71,14 +75,20 @@ end
 --   { { role = "outline" | "fill", hex = "#rrggbb", items = { { kind = "poly", pts }, ... } }, ... }
 function M.layers(s, kind, c)
 	local out = {}
+	local k = kind == "kill" and s.kill_scale or 1
 	local function layer(role, grow, hex)
 		local items = {}
-		for i, pts in ipairs(M.quads(s, c, grow)) do items[i] = { kind = "poly", pts = pts } end
+		for i, pts in ipairs(M.quads(s, c, grow, k)) do items[i] = { kind = "poly", pts = pts } end
 		out[#out + 1] = { role = role, hex = hex, items = items }
 	end
 	if s.outline then layer("outline", M.OUTLINE, M.OUTLINE_COLOR) end
 	layer("fill", 0, kind == "kill" and s.kill_color or s.color)
 	return out
+end
+
+-- How strong a fresh mark of `kind` shows, before the fade: a kill stronger than a hit by default.
+function M.opacity(s, kind)
+	return kind == "kill" and s.kill_opacity or s.opacity
 end
 
 -- How strong a mark `age` seconds old shows: 1 at once, falling in a straight line to 0 at `time`.

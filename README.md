@@ -31,7 +31,9 @@ Custom Crosshair is a client mod: it works in any lobby, and only this player se
 - **Hitmarker**: on or off. Off, nothing listens for hits.
 - **Show on hits** and **Show on kills**: which events show a mark. A kill shows over a hit that is still fading.
 - **Hits from**: Weapons in hand counts shots from the primary, the sidearm and the support weapon. Everything also counts rockets, grenades, mines, sentries and stratagems of this player. The choice applies to kills too.
-- **Hit color** and **Kill color**. The kill color starts as the red of the kill marker in Third Person Camera.
+- **Hit color** and **Kill color**: both start as the red of the kill marker in Third Person Camera.
+- **Hit opacity** and **Kill opacity**: how strong a fresh mark shows, 0.6 for a hit and 1 (solid) for a kill.
+- **Kill mark scale**: a kill mark is 1.5 times the size of a hit mark, line length, gap and thickness alike.
 - **Hitmarker size**: length of each of the four diagonal lines, in pixels.
 - **Hitmarker gap**: distance from the center of the crosshair to the inner end of each line, along the diagonal.
 - **Hitmarker thickness**: width of the lines.
