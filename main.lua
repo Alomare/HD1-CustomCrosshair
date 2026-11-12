@@ -40,7 +40,6 @@ local MENU = "hud/cursors/menu"
 local HIDDEN = "hud/cursors/invisible"
 local TRANSITION = "hud/cursors/game_transition_"
 local LARGE = "_large"
-local HIDDEN_LARGE = HIDDEN .. LARGE
 local SPRITE = "cursor_game"
 local SPRITE_SIZE = 32
 
@@ -171,30 +170,48 @@ local function covered(path)
 	return nil
 end
 
--- True once the hook has swapped a game cursor: the game then sets every cursor through the hook.
-local hook_reached = false
-
 -- With both states on "game" the cursors stay as they are, and only the hitmarker draws.
 if crosshair then
 	obsidian.hook("Window", "set_cursor", function(original, path, ...)
-		local swap = covered(path)
-		if swap then hook_reached = true end
-		return original(swap or path, ...)
+		return original(covered(path) or path, ...)
 	end)
 end
 
--- While the game shows a game cursor of a covered state and the hook has never swapped one, the game
--- calls Window.set_cursor around the hook: the cursor goes invisible again after the game update, every frame.
-local bypass_logged = false
-local function cover_directly(cm, state)
-	if hook_reached or not hide[state] then return end
-	local window = rawget(_G, "Window")
-	if type(window) ~= "table" or type(window.set_cursor) ~= "function" then return end
-	window.set_cursor(cm.use_large_cursor and HIDDEN_LARGE or HIDDEN)
-	if not bypass_logged then
-		bypass_logged = true
-		obsidian.log("custom crosshair: the game cursor does not pass the Window.set_cursor hook, so it is hidden every frame")
+-- In the game the cursor does not pass the hook above (0.3.0 playtest), and setting the cursor from a
+-- frame function crashes the engine (0.3.1). Every cursor CursorManager sets goes through one local
+-- function of cursor_manager.lua, (path, large), shared as an upvalue by every CursorManager method. That
+-- function is swapped once for one that passes the invisible cursor in place of a covered game cursor,
+-- so the engine gets only the calls the game makes itself when it hides the cursor.
+local patched_method = nil
+local function patch_cursor_manager(cm)
+	local method = cm.set_use_large_cursor
+	if method == patched_method then return end
+	patched_method = method
+	local getup, setup = debug and debug.getupvalue, debug and debug.setupvalue
+	if type(method) ~= "function" or not (getup and setup) then
+		obsidian.log("custom crosshair: no CursorManager cursor function to swap")
+		return
 	end
+	local index, set = nil, nil
+	for i = 1, 255 do
+		local name, v = getup(method, i)
+		if name == nil then break end
+		if type(v) == "function" then
+			if index then
+				obsidian.log("custom crosshair: CursorManager.set_use_large_cursor holds more than one function, the game cursor stays")
+				return
+			end
+			index, set = i, v
+		end
+	end
+	if not index then
+		obsidian.log("custom crosshair: CursorManager.set_use_large_cursor holds no function, the game cursor stays")
+		return
+	end
+	setup(method, index, function(path, ...)
+		return set(covered(path) or path, ...)
+	end)
+	obsidian.log("custom crosshair: game cursors swapped inside CursorManager")
 end
 
 -- "idle" or "aim" while CursorManager shows a game cursor, nil otherwise (a menu, the map, hidden).
@@ -397,6 +414,7 @@ end
 
 local function frame()
 	local cm = rawget(_G, "CursorManager")
+	if crosshair and type(cm) == "table" then patch_cursor_manager(cm) end
 	local spot = third_person()
 	-- Where the hitmarker goes: the aim point of the crosshair, while one is up.
 	local mx, my, mc = nil, nil, 0.5
@@ -409,7 +427,6 @@ local function frame()
 		end
 	else
 		local state = cursor_state(cm)
-		if state and crosshair then cover_directly(cm, state) end
 		local x, y = nil, nil
 		if state then x, y = mouse() end
 		if x then

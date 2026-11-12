@@ -12,7 +12,19 @@ local function setup(options)
 	-- A long frame finishes every fade at once; one test below covers the fade.
 	rawset(_G, "ENGINE_DT", 1)
 	rawset(_G, "Window", { set_cursor = function(p) SET[#SET + 1] = p end })
-	rawset(_G, "CursorManager", { shown = true, current_cursor = "hud/cursors/game", next_cursor = nil })
+	-- As in cursor_manager.lua: every method sets the cursor through one shared local function.
+	local function set_hardware(path, large) Window.set_cursor(path .. (large and "_large" or "")) end
+	rawset(_G, "CursorManager", {
+		shown = true, current_cursor = "hud/cursors/game", next_cursor = nil, use_large_cursor = false,
+		set_cursor = function(self, path)
+			self.current_cursor = path
+			set_hardware(path, self.use_large_cursor)
+		end,
+		set_use_large_cursor = function(self, large)
+			self.use_large_cursor = large
+			set_hardware(self.current_cursor, large)
+		end,
+	})
 	rawset(_G, "Mouse", { axis_index = function(name) return name == "cursor" and 7 or nil end, axis = function(i) return i == 7 and MOUSE or nil end })
 	rawset(_G, "Gui", { bitmap_uv = function(gui, material) BITMAPS[#BITMAPS + 1] = material end })
 	rawset(_G, "InputComponent", {
@@ -87,34 +99,41 @@ test("a_state_on_game_keeps_that_game_cursor", function()
 	eq(#kit().calls, 0, "nothing drawn over the game cursor")
 end)
 
-test("a_game_cursor_set_around_the_hook_is_hidden_every_frame", function()
+test("cursor_manager_sets_the_invisible_cursor_for_covered_game_cursors", function()
 	setup()
-	CursorManager.use_large_cursor = true
+	frame()
+	eq(#SET, 0, "a frame sets no cursor")
+	CursorManager:set_cursor("hud/cursors/game")
+	CursorManager:set_cursor("hud/cursors/game_transition_02")
+	CursorManager:set_use_large_cursor(true)
+	CursorManager:set_cursor("hud/cursors/game_inactive")
+	CursorManager:set_cursor("hud/cursors/menu")
+	CursorManager:set_cursor("hud/cursors/invisible")
+	eq(table.concat(SET, " | "), "hud/cursors/invisible | hud/cursors/invisible | hud/cursors/invisible_large | hud/cursors/invisible_large | hud/cursors/menu_large | hud/cursors/invisible_large", "cursors set")
 	frame()
 	frame()
-	eq(table.concat(SET, " | "), "hud/cursors/invisible_large | hud/cursors/invisible_large", "hidden after each game update")
 	local logged = 0
 	for _, l in ipairs(LOGS) do
-		if l:find("does not pass the Window.set_cursor hook", 1, true) then logged = logged + 1 end
+		if l:find("swapped inside CursorManager", 1, true) then logged = logged + 1 end
 	end
-	eq(logged, 1, "logged once")
-	CursorManager.current_cursor = "hud/cursors/menu"
-	frame()
-	eq(#SET, 2, "the menu cursor stays")
+	eq(logged, 1, "swapped once")
 end)
 
-test("a_hook_that_swaps_the_cursor_needs_no_frame_call", function()
-	setup()
-	through("Window", "set_cursor", "hud/cursors/game")
-	frame()
-	frame()
-	eq(table.concat(SET, " | "), "hud/cursors/invisible", "only the swap")
-end)
-
-test("a_state_on_game_is_never_hidden_by_the_frame", function()
+test("a_state_on_game_keeps_that_cursor_in_cursor_manager", function()
 	setup({ aim_shape = "game" })
 	frame()
-	eq(#SET, 0, "aiming cursor of the game stays")
+	CursorManager:set_cursor("hud/cursors/game")
+	CursorManager:set_cursor("hud/cursors/game_inactive")
+	eq(table.concat(SET, " | "), "hud/cursors/game | hud/cursors/invisible", "cursors set")
+end)
+
+test("a_cursor_manager_it_cannot_read_is_left_alone", function()
+	setup()
+	CursorManager.set_use_large_cursor = function(self, large) self.use_large_cursor = large end
+	frame()
+	CursorManager:set_cursor("hud/cursors/game")
+	eq(table.concat(SET, " | "), "hud/cursors/game", "game cursor stays")
+	eq(LOGS[#LOGS]:find("holds no function", 1, true) ~= nil, true, "logged")
 end)
 
 test("both_states_on_game_leave_the_game_alone", function()
