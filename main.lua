@@ -23,7 +23,7 @@
 local shapes = obsidian.module("src/shapes")
 local hitmarker = obsidian.module("src/hitmarker")
 
-local VERSION = "0.3.0"
+local VERSION = "0.3.1"
 local MOD_ID = "alomare.customcrosshair"
 local ITP_ID = "alomare.integratedthirdperson"
 local API_ID = "obsidian.api"
@@ -40,6 +40,7 @@ local MENU = "hud/cursors/menu"
 local HIDDEN = "hud/cursors/invisible"
 local TRANSITION = "hud/cursors/game_transition_"
 local LARGE = "_large"
+local HIDDEN_LARGE = HIDDEN .. LARGE
 local SPRITE = "cursor_game"
 local SPRITE_SIZE = 32
 
@@ -170,11 +171,30 @@ local function covered(path)
 	return nil
 end
 
+-- True once the hook has swapped a game cursor: the game then sets every cursor through the hook.
+local hook_reached = false
+
 -- With both states on "game" the cursors stay as they are, and only the hitmarker draws.
 if crosshair then
 	obsidian.hook("Window", "set_cursor", function(original, path, ...)
-		return original(covered(path) or path, ...)
+		local swap = covered(path)
+		if swap then hook_reached = true end
+		return original(swap or path, ...)
 	end)
+end
+
+-- While the game shows a game cursor of a covered state and the hook has never swapped one, the game
+-- calls Window.set_cursor around the hook: the cursor goes invisible again after the game update, every frame.
+local bypass_logged = false
+local function cover_directly(cm, state)
+	if hook_reached or not hide[state] then return end
+	local window = rawget(_G, "Window")
+	if type(window) ~= "table" or type(window.set_cursor) ~= "function" then return end
+	window.set_cursor(cm.use_large_cursor and HIDDEN_LARGE or HIDDEN)
+	if not bypass_logged then
+		bypass_logged = true
+		obsidian.log("custom crosshair: the game cursor does not pass the Window.set_cursor hook, so it is hidden every frame")
+	end
 end
 
 -- "idle" or "aim" while CursorManager shows a game cursor, nil otherwise (a menu, the map, hidden).
@@ -389,6 +409,7 @@ local function frame()
 		end
 	else
 		local state = cursor_state(cm)
+		if state and crosshair then cover_directly(cm, state) end
 		local x, y = nil, nil
 		if state then x, y = mouse() end
 		if x then

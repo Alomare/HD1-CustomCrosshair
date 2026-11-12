@@ -87,6 +87,36 @@ test("a_state_on_game_keeps_that_game_cursor", function()
 	eq(#kit().calls, 0, "nothing drawn over the game cursor")
 end)
 
+test("a_game_cursor_set_around_the_hook_is_hidden_every_frame", function()
+	setup()
+	CursorManager.use_large_cursor = true
+	frame()
+	frame()
+	eq(table.concat(SET, " | "), "hud/cursors/invisible_large | hud/cursors/invisible_large", "hidden after each game update")
+	local logged = 0
+	for _, l in ipairs(LOGS) do
+		if l:find("does not pass the Window.set_cursor hook", 1, true) then logged = logged + 1 end
+	end
+	eq(logged, 1, "logged once")
+	CursorManager.current_cursor = "hud/cursors/menu"
+	frame()
+	eq(#SET, 2, "the menu cursor stays")
+end)
+
+test("a_hook_that_swaps_the_cursor_needs_no_frame_call", function()
+	setup()
+	through("Window", "set_cursor", "hud/cursors/game")
+	frame()
+	frame()
+	eq(table.concat(SET, " | "), "hud/cursors/invisible", "only the swap")
+end)
+
+test("a_state_on_game_is_never_hidden_by_the_frame", function()
+	setup({ aim_shape = "game" })
+	frame()
+	eq(#SET, 0, "aiming cursor of the game stays")
+end)
+
 test("both_states_on_game_leave_the_game_alone", function()
 	setup({ idle_shape = "game", aim_shape = "game" })
 	eq(#HOOKS, 0, "hooks")
@@ -270,6 +300,7 @@ test("drawing_a_frame_makes_no_tables", function()
 	setup({ aim_shape = "circle_cross", aim_shadow = true, aim_shadow_blur = 3, aim_shadow_size = 1.2, aim_shadow_spread = 1 })
 	local k = kit()
 	k.rect, k.poly, k.layer, k.opacity = function() end, function() end, function() end, function() end
+	Window.set_cursor = function() end
 	frame()
 	jit.off()
 	collectgarbage("collect")
@@ -526,6 +557,7 @@ test("a_frame_with_a_mark_up_makes_no_tables", function()
 	rawset(_G, "ENGINE_DT", 0.001)
 	local k = kit()
 	k.rect, k.poly, k.layer, k.opacity = function() end, function() end, function() end, function() end
+	Window.set_cursor = function() end
 	api.hit(BUG, RIFLE_HIT)
 	api.kill(BUG, RIFLE, ME)
 	frame()
