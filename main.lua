@@ -23,7 +23,7 @@
 local shapes = obsidian.module("src/shapes")
 local hitmarker = obsidian.module("src/hitmarker")
 
-local VERSION = "0.4.0"
+local VERSION = "0.5.0"
 local MOD_ID = "alomare.customcrosshair"
 local ITP_ID = "alomare.integratedthirdperson"
 local API_ID = "obsidian.api"
@@ -458,7 +458,9 @@ local function frame()
 		if menu_up(cm) then
 			blend = nil
 		else
-			if claimed then mc = draw_state(third_looks, spot.aiming, spot.x, spot.y) end
+			-- Aiming while the aim button, fire or a throw is held, as the game picks the cursor in the
+			-- top-down view. Integrated Third Person before 0.4.2 reports no firing.
+			if claimed then mc = draw_state(third_looks, spot.aiming or spot.firing, spot.x, spot.y) end
 			mx, my = spot.x, spot.y
 		end
 	else

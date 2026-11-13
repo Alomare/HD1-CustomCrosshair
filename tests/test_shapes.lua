@@ -7,7 +7,10 @@ local shapes = dofile("src/shapes.lua")
 local function settings(over)
 	local s = {}
 	for k, v in pairs(shapes.DEFAULTS.aim) do s[k] = v end
-	s.outline, s.shadow = false, false
+	-- A plain look the tests below change one setting at a time: no outline, no shadow, and a shadow
+	-- that is sharp at half strength once one is switched on.
+	s.outline, s.shadow, s.opacity = false, false, 1
+	s.shadow_opacity, s.shadow_offset, s.shadow_blur = 0.5, 2, 0
 	for k, v in pairs(over or {}) do s[k] = v end
 	return s
 end
@@ -305,8 +308,36 @@ test("rects_are_never_thinner_than_a_pixel", function()
 	eq(items[1].h, 1, "a hair line still covers a row")
 end)
 
+test("length_sets_the_arms_the_circle_and_the_brackets", function()
+	eq(shapes.DEFAULTS.idle.length, shapes.ARM, "idle default keeps the old arms")
+	eq(shapes.DEFAULTS.aim.length, shapes.ARM, "aiming default keeps the old arms")
+	-- Cross, 2 thick, gap 4: the right arm starts 5 out and runs `length`.
+	local cross = rects(layer(shapes.layers(settings({ shape = "cross", thickness = 2, gap = 4, length = 12 })), "fill").items)
+	eq(cross, rect_list({ { 5, -1, 12, 2 }, { -17, -1, 12, 2 }, { -1, 5, 2, 12 }, { -1, -17, 2, 12 } }), "arms 12 long")
+	local none = rects(layer(shapes.layers(settings({ shape = "cross", thickness = 2, gap = 4, length = 0 })), "fill").items)
+	eq(none, rect_list({ { 5, -1, 1, 2 }, { -5, -1, 1, 2 }, { -1, 5, 2, 1 }, { -1, -5, 2, 1 } }), "length 0 leaves a pixel")
+	local ring = layer(shapes.layers(settings({ shape = "circle", thickness = 2, gap = 4, length = 12 })), "fill")
+	near(ring.items[1].of.r_out, 1 + 4 + 12, "the circle runs through the tips of the arms")
+	-- Brackets, 1 thick: the bar reaches 0.75 of the length above and below the centre line, the serifs
+	-- are half the length.
+	local function sizes(length)
+		local out = {}
+		for _, it in ipairs(layer(shapes.layers(settings({ shape = "brackets", thickness = 1, gap = 2, length = length })), "fill").items) do
+			out[#out + 1] = it.w .. "x" .. it.h
+		end
+		table.sort(out)
+		return table.concat(out, " ")
+	end
+	eq(sizes(8), "1x13 1x13 4x1 4x1 4x1 4x1", "6 and 4 pixels at the default length, as before the option")
+	eq(sizes(16), "1x25 1x25 8x1 8x1 8x1 8x1", "twice the length, twice the size")
+	local missing = settings({ shape = "brackets", thickness = 1, gap = 2 })
+	missing.length = nil
+	local eight = shapes.layers(settings({ shape = "brackets", thickness = 1, gap = 2, length = 8 }))
+	eq(rects(shapes.layers(missing)[1].items), rects(eight[1].items), "no length is the default length")
+end)
+
 test("rect_edges_are_sums_of_known_sizes", function()
-	local known = { H = true, G = true, T = true, ["1"] = true }
+	local known = { H = true, G = true, T = true, L = true, ["1"] = true }
 	for i, r in ipairs(shapes.RECTS) do
 		for _, edge in ipairs({ "x0", "x1", "y0", "y1" }) do
 			eq(#r[edge] > 0, true, i .. " " .. edge .. " terms")

@@ -18,6 +18,7 @@ Custom Crosshair is a client mod: it works in any lobby, and only this player se
 - **Shape**: cross, cross with dot, dot, circle, circle with dot, circle with cross, T (a cross without the top arm), chevron, brackets, Game cursor (the cursor of the game for that state) or None.
 - **Scale**: the whole crosshair, outline and shadow included.
 - **Gap**: pixels between the center line and the arms. Circles, brackets and the chevron sit wider with a larger gap.
+- **Length**: length of each line in pixels, 8 by default, up to 40. Circles, brackets and the chevron grow with it.
 - **Aiming gap scales with spread** (Aiming only, on by default): the aiming gap opens by up to 12 pixels as the spread of the weapon in hand grows while firing, and closes as the spread settles.
 - **Thickness**: line width in pixels. The dot is twice as wide.
 - **Color** and **Opacity**.
@@ -32,16 +33,20 @@ Custom Crosshair is a client mod: it works in any lobby, and only this player se
 - **Hitmarker**: on or off. Off, nothing listens for hits.
 - **Show on hits** and **Show on kills**: which events show a mark. A kill shows over a hit that is still fading.
 - **Hits from**: Weapons in hand counts shots from the primary, the sidearm and the support weapon. Everything also counts rockets, grenades, mines, sentries and stratagems of this player. The choice applies to kills too.
-- **Hit color** and **Kill color**: both start as the red of the kill marker in Third Person Camera.
-- **Hit opacity** and **Kill opacity**: how strong a fresh mark shows, 0.6 for a hit and 1 (solid) for a kill.
-- **Kill mark scale**: a kill mark is 1.5 times the size of a hit mark, line length, gap and thickness alike.
+- **Hit color** and **Kill color**: white for a hit and red for a kill by default.
+- **Hit opacity** and **Kill opacity**: how strong a fresh mark shows, 0.5 for a hit and 1 (solid) for a kill.
+- **Kill mark scale**: a kill mark is 1.1 times the size of a hit mark by default, line length, gap and thickness alike.
 - **Hitmarker size**: length of each of the four diagonal lines, in pixels.
 - **Hitmarker gap**: distance from the center of the crosshair to the inner end of each line, along the diagonal.
 - **Hitmarker thickness**: width of the lines.
 - **Hitmarker time**: how long a mark takes to fade out, from 0.1 to 1.5 seconds. A new hit starts the fade again.
-- **Hitmarker outline**: a black border one pixel wide.
+- **Hitmarker outline**: a black border one pixel wide, off by default.
 
-Sizes are screen pixels at scale 1. Every line of the crosshair lands on whole pixels, so both sides match: an odd thickness centers the crosshair on the pixel under the mouse, and an even one on the corner of that pixel. The blur copies move by whole pixels too. The default size, spread and blur draw the same shadow as Custom Crosshair 0.1.
+## Default look
+
+Idle: a white circle 3 pixels thick at 0.4 opacity, with no gap, outline or shadow. Aiming: a white cross 3 pixels thick, gap 2, at 0.95 opacity, with a thin black outline and a faint soft shadow, the gap opening with spread. Hitmarker: white marks for hits at 0.5 opacity, red marks for kills, no outline.
+
+Sizes are screen pixels at scale 1. Every line of the crosshair lands on whole pixels, so both sides match: an odd thickness centers the crosshair on the pixel under the mouse, and an even one on the corner of that pixel. The blur copies move by whole pixels too. Shadow size 1, spread 0 and blur 0 draw the same shadow as Custom Crosshair 0.1.
 
 ## Idle and aiming
 
@@ -55,7 +60,7 @@ The mark shows around the crosshair, centered on the crosshair: at the mouse in 
 
 ## Integrated Third Person
 
-While the third person view of Integrated Third Person is on, the crosshair goes where shots land, idle or aiming as that mod reports, in place of the crosshair from Integrated Third Person. In the top-down view the crosshair follows the mouse as usual. The game has no cursor in third person, so a state set to Game cursor takes the default look there. With **Third person crosshair** off, Integrated Third Person keeps the crosshair of that mod.
+While the third person view of Integrated Third Person is on, the crosshair goes where shots land, in place of the crosshair from Integrated Third Person. The aiming look shows while the aim button, fire or a throw is held, as in the top-down view; reporting fire and throws needs Integrated Third Person 0.4.2 or later, and an older version shows the aiming look only while the aim button is held. In the top-down view the crosshair follows the mouse as usual. The game has no cursor in third person, so a state set to Game cursor takes the default look there. With **Third person crosshair** off, Integrated Third Person keeps the crosshair of that mod.
 
 ## Controllers
 

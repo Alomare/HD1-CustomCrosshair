@@ -19,9 +19,9 @@ M.FROM = { "weapons", "all" }
 -- Settings as obsidian.json declares them, and the option id of each. main.lua fills a missing value
 -- from here, and tests/test_manifest.lua keeps the two the same.
 M.DEFAULTS = {
-	on = true, hits = true, kills = true, from = "weapons", color = "#ff2d23", kill_color = "#ff2d23",
-	opacity = 0.6, kill_opacity = 1, kill_scale = 1.5,
-	size = 12, gap = 6, thickness = 2, time = 0.35, outline = true,
+	on = true, hits = true, kills = true, from = "weapons", color = "#ffffff", kill_color = "#ff2929",
+	opacity = 0.5, kill_opacity = 1, kill_scale = 1.1,
+	size = 12, gap = 6, thickness = 2, time = 0.35, outline = false,
 }
 M.KEYS = { "on", "hits", "kills", "from", "color", "kill_color", "opacity", "kill_opacity", "kill_scale", "size", "gap",
 	"thickness", "time", "outline" }

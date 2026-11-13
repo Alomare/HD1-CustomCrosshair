@@ -24,7 +24,7 @@ end
 test("identity_and_files", function()
 	local m = manifest()
 	eq(m.id, "alomare.customcrosshair", "id")
-	eq(m.version, "0.4.0", "version")
+	eq(m.version, "0.5.0", "version")
 	eq(m.scope, "client", "scope")
 	eq(m.entry, "main.lua", "entry")
 	eq(m.authors[1], "Alomare", "author")
@@ -68,12 +68,11 @@ test("every_hitmarker_setting_is_an_option_with_the_module_default", function()
 	eq(options.hitmarker_kill_color.visible_when.hitmarker_kills, true, "kill color with kills on")
 end)
 
-test("new_shadow_settings_keep_the_old_look_by_default", function()
+test("shadow_settings_start_at_the_plain_shadow", function()
 	local options = by_id(manifest())
 	for _, prefix in ipairs({ "idle", "aim" }) do
 		eq(options[prefix .. "_shadow_size"].default, 1, prefix .. " size")
 		eq(options[prefix .. "_shadow_spread"].default, 0, prefix .. " spread")
-		eq(options[prefix .. "_shadow_blur"].default, 0, prefix .. " blur")
 		eq(options[prefix .. "_shadow_blur"].max, shapes.MAX_BLUR, prefix .. " blur rings")
 		eq(options[prefix .. "_shadow_blur"].step, 1, prefix .. " whole pixels of blur")
 		for _, key in ipairs({ "size", "spread", "blur" }) do
@@ -137,10 +136,24 @@ test("groups_previews_and_conditions_point_at_real_things", function()
 end)
 
 test("arms_inside_a_circle_stay_longer_than_the_line", function()
-	-- Circle with cross: the arms are ARM minus the thickness long.
+	-- Circle with cross: the arms are the length minus the thickness long.
 	local options = by_id(manifest())
 	for _, prefix in ipairs({ "idle", "aim" }) do
-		eq(options[prefix .. "_thickness"].max < shapes.ARM, true, prefix .. " thickest line")
+		eq(options[prefix .. "_thickness"].max < options[prefix .. "_length"].default, true, prefix .. " thickest line")
+	end
+end)
+
+test("length_follows_the_gap_and_starts_at_the_old_arms", function()
+	local m = manifest()
+	for _, prefix in ipairs({ "idle", "aim" }) do
+		local at = {}
+		for i, o in ipairs(m.options) do at[o.id] = i end
+		eq(at[prefix .. "_length"], at[prefix .. "_gap"] + 1, prefix .. " length after the gap")
+		local o = by_id(m)[prefix .. "_length"]
+		eq(o.type, "number", prefix .. " number")
+		eq(o.default, shapes.ARM, prefix .. " default")
+		eq(o.min, 0, prefix .. " min")
+		eq(o.step, 0.01, prefix .. " step")
 	end
 end)
 

@@ -39,6 +39,7 @@ local function names(p)
 		H = o("thickness") .. "/2",
 		G = o("gap"),
 		T = o("thickness"),
+		L = o("length"),
 		-- Where the centre sits in the aim pixel (shapes.centre): 0.5 for an odd thickness, 0 for an even one.
 		C = "round(" .. o("thickness") .. "*" .. o("scale") .. ")%2/2",
 	}
@@ -50,14 +51,24 @@ local function shape_in(n, list)
 	return table.concat(parts, "||")
 end
 
--- A sum of shapes.RECTS terms in order, times z when there is one, then the growth and the shift, as
--- an expression.
+-- A sum of shapes.RECTS terms in order, times z when there is one, then the growth terms one by one
+-- (as shapes.rect_items adds grow, then spread) and the shift, as an expression. Half of a size is
+-- written "x/2", the same number as 0.5 times x and shorter.
 local function sum(n, list, g_sign, g, d_sign, d, z)
 	local out = {}
 	for i, t in ipairs(list) do
 		local coef, size = t[1], t[2]
 		local mag = math.abs(coef)
-		local body = size == "1" and number(mag) or (mag == 1 and n[size] or number(mag) .. "*" .. n[size])
+		local body
+		if size == "1" then
+			body = number(mag)
+		elseif mag == 1 then
+			body = n[size]
+		elseif mag == 0.5 then
+			body = n[size] .. "/2"
+		else
+			body = number(mag) .. "*" .. n[size]
+		end
 		if coef < 0 then
 			out[#out + 1] = (i == 1 and "0-" or "-") .. body
 		else
@@ -66,7 +77,7 @@ local function sum(n, list, g_sign, g, d_sign, d, z)
 	end
 	local s = table.concat(out)
 	if z then s = z .. "*(" .. s .. ")" end
-	if g ~= "0" then s = s .. (g_sign < 0 and "-" or "+") .. g end
+	for _, term in ipairs(g) do s = s .. (g_sign < 0 and "-" or "+") .. term end
 	if d ~= "0" then s = s .. (d_sign < 0 and "-" or "+") .. d end
 	return s
 end
@@ -84,18 +95,20 @@ local function rect(n, r, g, d, z)
 		E(L), E("min(1-" .. T .. ",0-" .. B .. ")"), E("max(" .. R .. "-" .. L .. ",1)"), E("max(" .. T .. "-" .. B .. ",1)"))
 end
 
--- Every part of every shape, as SVG elements of one layer. g: growth (outline and spread), d: shadow
--- shift, both before the scale, and z the shadow size (nil for 1).
-local function parts(n, g, d, z, color)
+-- Every part of every shape, as SVG elements of one layer. grow: the growth terms (outline, then
+-- spread), d: shadow shift, both before the scale, and z the shadow size (nil for 1).
+local function parts(n, grow, d, z, color)
 	local out = {}
-	local S, H, G, T = n.S, n.H, n.G, n.T
+	-- Circles and the chevron take the growth as one number, as shapes.layers hands it to shapes.items.
+	local g = #grow == 0 and "0" or (#grow == 1 and grow[1] or "(" .. table.concat(grow, "+") .. ")")
+	local S, H, G, T, L = n.S, n.H, n.G, n.T, n.L
 	-- Rectangles, a group for each run with the same shapes.
 	local i = 1
 	while i <= #shapes.RECTS do
 		local set = table.concat(shapes.RECTS[i].shapes, " ")
 		out[#out + 1] = string.format('<g data-if="%s">', shape_in(n, shapes.RECTS[i].shapes))
 		while i <= #shapes.RECTS and table.concat(shapes.RECTS[i].shapes, " ") == set do
-			out[#out + 1] = "  " .. rect(n, shapes.RECTS[i], g, d, z)
+			out[#out + 1] = "  " .. rect(n, shapes.RECTS[i], grow, d, z)
 			i = i + 1
 		end
 		out[#out + 1] = "</g>"
@@ -113,8 +126,8 @@ local function parts(n, g, d, z, color)
 
 	-- The circle line, a stroked circle between the inner and outer radius (shapes.parts). The
 	-- opacity of the stroke comes from the layer.
-	local r_out = S .. "*(" .. sized(H .. "+" .. G .. "+8") .. plus_g .. ")"
-	local r_in = "max(" .. S .. "*(" .. sized(H .. "+" .. G .. "+8-" .. T) .. minus_g .. "),0)"
+	local r_out = S .. "*(" .. sized(H .. "+" .. G .. "+" .. L) .. plus_g .. ")"
+	local r_in = "max(" .. S .. "*(" .. sized(H .. "+" .. G .. "+" .. L .. "-" .. T) .. minus_g .. "),0)"
 	out[#out + 1] = string.format('<circle data-if="%s" cx="%s" cy="%s" r="%s" stroke-width="%s" fill="none" stroke="%s"/>',
 		shape_in(n, { "circle", "circle_dot", "circle_cross" }), E(cx), E(cy),
 		E("(" .. r_in .. "+" .. r_out .. ")/2"), E(r_out .. "-" .. r_in), E(color))
@@ -126,7 +139,7 @@ local function parts(n, g, d, z, color)
 	-- The chevron: two quads meeting on the vertical line through the centre (shapes.chevron_quads).
 	local apex = "(0-" .. S .. "*" .. zs .. "(" .. H .. "+" .. G .. "+" .. T .. "*" .. SQ .. "))"
 	local k = "(" .. S .. "*(" .. zs .. T .. (g ~= "0" and ("+2*" .. g) or "") .. ")*" .. SQ .. ")"
-	local a = "(" .. S .. "*(" .. zs .. "8" .. plus_g .. ")*" .. SQ .. ")"
+	local a = "(" .. S .. "*(" .. zs .. L .. plus_g .. ")*" .. SQ .. ")"
 	local h = "(" .. k .. "/2)"
 	local function pt(x, y)
 		-- Around the centre (x, y up) to SVG: c + d + x, 1 - c + d - y.
@@ -195,12 +208,13 @@ function M.build(p)
 	local n = names(p)
 	local o = n.o
 	local edge = "(" .. o("outline") .. "?" .. o("outline_thickness") .. ":0)"
-	local grow = "(" .. edge .. "+" .. o("shadow_spread") .. ")"
+	-- Growth of the shadow: the outline, then the spread (shapes.layers).
+	local grow = { edge, o("shadow_spread") }
 	local drawn = n.shape .. "!='game'?" .. n.shape .. "!='none':0"
 	local shadow_id = p .. "_shadow_shape"
 	local shadow_opacity = o("shadow_opacity") .. "*" .. o("opacity")
 	-- About how far the crosshair reaches from the centre, for the magnification.
-	local reach = "(" .. o("gap") .. "+8+" .. o("thickness") .. ")"
+	local reach = "(" .. o("gap") .. "+" .. o("length") .. "+" .. o("thickness") .. ")"
 	local extent = "(max(" .. reach .. "+" .. edge .. "," .. o("shadow") .. "?" .. o("shadow_size") .. "*" .. reach .. "+" .. edge ..
 		"+" .. o("shadow_spread") .. "+" .. o("shadow_offset") .. "+" .. o("shadow_blur") .. ":0)*" .. n.S .. "+1)"
 	local zoom = "clamp(floor(54/" .. extent .. "),1,4)"
@@ -210,8 +224,8 @@ function M.build(p)
 		string.format('  <g id="%s_crosshair" transform="translate(60 70)" shape-rendering="crispEdges" data-if="%s">', p, drawn),
 		blur(n, o("shadow_color"), shadow_opacity, shadow_id),
 		layer(n, "shadow", o("shadow"), grow, o("shadow_offset"), o("shadow_size"), o("shadow_color"), shadow_opacity, shadow_id),
-		layer(n, "outline", o("outline"), o("outline_thickness"), "0", nil, o("outline_color"), o("opacity")),
-		layer(n, "fill", nil, "0", "0", nil, o("color"), o("opacity")),
+		layer(n, "outline", o("outline"), { o("outline_thickness") }, "0", nil, o("outline_color"), o("opacity")),
+		layer(n, "fill", nil, {}, "0", nil, o("color"), o("opacity")),
 		'  </g>',
 		string.format('  <use href="#%s_crosshair" data-if="%s" transform="translate(%s %s) scale(%s)"/>', p, drawn,
 			E("180-60.5*" .. zoom), E("70-70.5*" .. zoom), E(zoom)),

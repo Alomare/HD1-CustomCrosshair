@@ -13,8 +13,8 @@ local M = {}
 -- nothing; both come out empty here.
 M.SHAPES = { "cross", "cross_dot", "dot", "circle", "circle_dot", "circle_cross", "t", "chevron", "brackets", "game", "none" }
 
--- Arm length at scale 1, in pixels. A circle runs through the tips of the arms of a cross with the
--- same settings.
+-- Default arm length at scale 1, in pixels (option length). A circle runs through the tips of the arms
+-- of a cross with the same settings.
 M.ARM = 8
 
 -- Circles are polygons with sides of about this many pixels, from MIN_SIDES to MAX_SIDES sides.
@@ -25,21 +25,21 @@ M.MIN_SIDES, M.MAX_SIDES = 12, 96
 -- tests/test_manifest.lua keeps the two the same.
 M.DEFAULTS = {
 	idle = {
-		shape = "circle", scale = 1, gap = 4, thickness = 1, color = "#ffffff", opacity = 0.6,
-		outline = true, outline_color = "#000000", outline_thickness = 1,
+		shape = "circle", scale = 1, gap = 0, length = 8, thickness = 3, color = "#ffffff", opacity = 0.4,
+		outline = false, outline_color = "#000000", outline_thickness = 1,
 		shadow = false, shadow_color = "#000000", shadow_opacity = 0.5, shadow_offset = 2,
 		shadow_size = 1, shadow_spread = 0, shadow_blur = 0,
 	},
 	aim = {
-		shape = "cross_dot", scale = 1, gap = 4, thickness = 2, color = "#ffffff", opacity = 1,
-		outline = true, outline_color = "#000000", outline_thickness = 1,
-		shadow = false, shadow_color = "#000000", shadow_opacity = 0.5, shadow_offset = 2,
-		shadow_size = 1, shadow_spread = 0, shadow_blur = 0,
+		shape = "cross", scale = 1, gap = 2, length = 8, thickness = 3, color = "#ffffff", opacity = 0.95,
+		outline = true, outline_color = "#000000", outline_thickness = 0.51,
+		shadow = true, shadow_color = "#000000", shadow_opacity = 0.2, shadow_offset = 0,
+		shadow_size = 1, shadow_spread = 0, shadow_blur = 3,
 	},
 }
 
 -- The settings of one state, without the prefix.
-M.KEYS = { "shape", "scale", "gap", "thickness", "color", "opacity", "outline", "outline_color", "outline_thickness",
+M.KEYS = { "shape", "scale", "gap", "length", "thickness", "color", "opacity", "outline", "outline_color", "outline_thickness",
 	"shadow", "shadow_color", "shadow_opacity", "shadow_offset", "shadow_size", "shadow_spread", "shadow_blur" }
 
 -- Shadow blur: rings of copies of the shadow, eight copies to a ring, one ring per pixel of blur.
@@ -65,30 +65,33 @@ end
 
 -- The rectangles of every shape. Each edge (left x0, right x1, bottom y0, top y1) is a sum of terms
 -- { coefficient, size } taken in order, before the scale: H is half the thickness, G the gap, T the
--- thickness and "1" a plain number of pixels. tools/build_previews.lua writes the same sums into the
--- previews in the same order, so the game and the preview round every edge alike. The arms are ARM
--- (8) long.
-local H, G, T, PX = "H", "G", "T", "1"
+-- thickness, L the length and "1" a plain number of pixels. tools/build_previews.lua writes the same
+-- sums into the previews in the same order, so the game and the preview round every edge alike. The
+-- arms are L long; brackets grow with L too, at the default length of 8 the same 4 and 6 pixels as
+-- before the option (0.5 and 0.75 times 8 are exact).
+local H, G, T, L = "H", "G", "T", "L"
 local function terms(...) return { ... } end
 M.RECTS = {
 	-- Cross, and the T without a top arm: right, left, bottom, then top.
-	{ shapes = { "cross", "cross_dot", "t" }, x0 = terms({ 1, H }, { 1, G }), x1 = terms({ 1, H }, { 1, G }, { 8, PX }), y0 = terms({ -1, H }), y1 = terms({ 1, H }) },
-	{ shapes = { "cross", "cross_dot", "t" }, x0 = terms({ -1, H }, { -1, G }, { -8, PX }), x1 = terms({ -1, H }, { -1, G }), y0 = terms({ -1, H }), y1 = terms({ 1, H }) },
-	{ shapes = { "cross", "cross_dot", "t" }, x0 = terms({ -1, H }), x1 = terms({ 1, H }), y0 = terms({ -1, H }, { -1, G }, { -8, PX }), y1 = terms({ -1, H }, { -1, G }) },
-	{ shapes = { "cross", "cross_dot" }, x0 = terms({ -1, H }), x1 = terms({ 1, H }), y0 = terms({ 1, H }, { 1, G }), y1 = terms({ 1, H }, { 1, G }, { 8, PX }) },
-	-- Inside the circle, up to the inner edge of the line.
-	{ shapes = { "circle_cross" }, x0 = terms({ 1, H }, { 1, G }), x1 = terms({ 1, H }, { 1, G }, { 8, PX }, { -1, T }), y0 = terms({ -1, H }), y1 = terms({ 1, H }) },
-	{ shapes = { "circle_cross" }, x0 = terms({ -1, H }, { -1, G }, { -8, PX }, { 1, T }), x1 = terms({ -1, H }, { -1, G }), y0 = terms({ -1, H }), y1 = terms({ 1, H }) },
-	{ shapes = { "circle_cross" }, x0 = terms({ -1, H }), x1 = terms({ 1, H }), y0 = terms({ -1, H }, { -1, G }, { -8, PX }, { 1, T }), y1 = terms({ -1, H }, { -1, G }) },
-	{ shapes = { "circle_cross" }, x0 = terms({ -1, H }), x1 = terms({ 1, H }), y0 = terms({ 1, H }, { 1, G }), y1 = terms({ 1, H }, { 1, G }, { 8, PX }, { -1, T }) },
-	-- "[ ]": a bar each side, 6 above and below the edge of the centre line, and serifs 4 long reaching
-	-- back to the gap. Right bar, top and bottom serif, then the same on the left.
-	{ shapes = { "brackets" }, x0 = terms({ 1, H }, { 1, G }, { 4, PX }), x1 = terms({ 1, H }, { 1, G }, { 4, PX }, { 1, T }), y0 = terms({ -1, H }, { -6, PX }), y1 = terms({ 1, H }, { 6, PX }) },
-	{ shapes = { "brackets" }, x0 = terms({ 1, H }, { 1, G }), x1 = terms({ 1, H }, { 1, G }, { 4, PX }), y0 = terms({ 1, H }, { 6, PX }, { -1, T }), y1 = terms({ 1, H }, { 6, PX }) },
-	{ shapes = { "brackets" }, x0 = terms({ 1, H }, { 1, G }), x1 = terms({ 1, H }, { 1, G }, { 4, PX }), y0 = terms({ -1, H }, { -6, PX }), y1 = terms({ -1, H }, { -6, PX }, { 1, T }) },
-	{ shapes = { "brackets" }, x0 = terms({ -1, H }, { -1, G }, { -4, PX }, { -1, T }), x1 = terms({ -1, H }, { -1, G }, { -4, PX }), y0 = terms({ -1, H }, { -6, PX }), y1 = terms({ 1, H }, { 6, PX }) },
-	{ shapes = { "brackets" }, x0 = terms({ -1, H }, { -1, G }, { -4, PX }), x1 = terms({ -1, H }, { -1, G }), y0 = terms({ 1, H }, { 6, PX }, { -1, T }), y1 = terms({ 1, H }, { 6, PX }) },
-	{ shapes = { "brackets" }, x0 = terms({ -1, H }, { -1, G }, { -4, PX }), x1 = terms({ -1, H }, { -1, G }), y0 = terms({ -1, H }, { -6, PX }), y1 = terms({ -1, H }, { -6, PX }, { 1, T }) },
+	{ shapes = { "cross", "cross_dot", "t" }, x0 = terms({ 1, H }, { 1, G }), x1 = terms({ 1, H }, { 1, G }, { 1, L }), y0 = terms({ -1, H }), y1 = terms({ 1, H }) },
+	{ shapes = { "cross", "cross_dot", "t" }, x0 = terms({ -1, H }, { -1, G }, { -1, L }), x1 = terms({ -1, H }, { -1, G }), y0 = terms({ -1, H }), y1 = terms({ 1, H }) },
+	{ shapes = { "cross", "cross_dot", "t" }, x0 = terms({ -1, H }), x1 = terms({ 1, H }), y0 = terms({ -1, H }, { -1, G }, { -1, L }), y1 = terms({ -1, H }, { -1, G }) },
+	{ shapes = { "cross", "cross_dot" }, x0 = terms({ -1, H }), x1 = terms({ 1, H }), y0 = terms({ 1, H }, { 1, G }), y1 = terms({ 1, H }, { 1, G }, { 1, L }) },
+	-- Inside the circle, up to the inner edge of the line (H less T comes to 0.5 T).
+	{ shapes = { "circle_cross" }, x0 = terms({ 1, H }, { 1, G }), x1 = terms({ 1, G }, { 1, L }, { -0.5, T }), y0 = terms({ -1, H }), y1 = terms({ 1, H }) },
+	{ shapes = { "circle_cross" }, x0 = terms({ 0.5, T }, { -1, G }, { -1, L }), x1 = terms({ -1, H }, { -1, G }), y0 = terms({ -1, H }), y1 = terms({ 1, H }) },
+	{ shapes = { "circle_cross" }, x0 = terms({ -1, H }), x1 = terms({ 1, H }), y0 = terms({ 0.5, T }, { -1, G }, { -1, L }), y1 = terms({ -1, H }, { -1, G }) },
+	{ shapes = { "circle_cross" }, x0 = terms({ -1, H }), x1 = terms({ 1, H }), y0 = terms({ 1, H }, { 1, G }), y1 = terms({ 1, G }, { 1, L }, { -0.5, T }) },
+	-- "[ ]": a bar each side, 0.75 L (6 at the default) above and below the edge of the centre line, and
+	-- serifs 0.5 L (4) long reaching back to the gap. Right bar, top and bottom serif, then the same on
+	-- the left. H and T come together as 1.5 T or 0.5 T where they meet, which keeps the expressions of
+	-- the preview within the 400 characters of the Launcher.
+	{ shapes = { "brackets" }, x0 = terms({ 1, H }, { 1, G }, { 0.5, L }), x1 = terms({ 1.5, T }, { 1, G }, { 0.5, L }), y0 = terms({ -1, H }, { -0.75, L }), y1 = terms({ 1, H }, { 0.75, L }) },
+	{ shapes = { "brackets" }, x0 = terms({ 1, H }, { 1, G }), x1 = terms({ 1, H }, { 1, G }, { 0.5, L }), y0 = terms({ 0.75, L }, { -0.5, T }), y1 = terms({ 1, H }, { 0.75, L }) },
+	{ shapes = { "brackets" }, x0 = terms({ 1, H }, { 1, G }), x1 = terms({ 1, H }, { 1, G }, { 0.5, L }), y0 = terms({ -1, H }, { -0.75, L }), y1 = terms({ 0.5, T }, { -0.75, L }) },
+	{ shapes = { "brackets" }, x0 = terms({ -1.5, T }, { -1, G }, { -0.5, L }), x1 = terms({ -1, H }, { -1, G }, { -0.5, L }), y0 = terms({ -1, H }, { -0.75, L }), y1 = terms({ 1, H }, { 0.75, L }) },
+	{ shapes = { "brackets" }, x0 = terms({ -1, H }, { -1, G }, { -0.5, L }), x1 = terms({ -1, H }, { -1, G }), y0 = terms({ 0.75, L }, { -0.5, T }), y1 = terms({ 1, H }, { 0.75, L }) },
+	{ shapes = { "brackets" }, x0 = terms({ -1, H }, { -1, G }, { -0.5, L }), x1 = terms({ -1, H }, { -1, G }), y0 = terms({ -1, H }, { -0.75, L }), y1 = terms({ 0.5, T }, { -0.75, L }) },
 }
 
 local function has(list, shape)
@@ -98,7 +101,7 @@ local function has(list, shape)
 	return false
 end
 
--- A sum of terms, in order. sizes: { H, G, T, ["1"] = 1 }.
+-- A sum of terms, in order. sizes: { H, G, T, L, ["1"] = 1 }.
 local function sum(list, sizes)
 	local s = 0
 	for _, t in ipairs(list) do s = s + t[1] * sizes[t[2]] end
@@ -107,17 +110,20 @@ end
 
 -- The rectangles of a shape as whole pixels { kind = "rect", x, y, w, h } around the centre (c, c)
 -- of the aim pixel: sized by z, then grown by `grow` and moved by `shift` down and to the right, all
--- before the scale k. z is 1 when left out (1 times a sum is the same sum, to the last bit).
-function M.rect_items(shape, thickness, gap, k, c, grow, shift, out, z)
+-- before the scale k. z is 1 when left out (1 times a sum is the same sum, to the last bit), and the
+-- length is ARM when left out. `spread` grows the rectangles once more after `grow`, added apart
+-- from it as the preview adds it (0 when left out, which changes nothing).
+function M.rect_items(shape, thickness, gap, k, c, grow, shift, out, z, length, spread)
 	out = out or {}
 	z = z or 1
-	local sizes = { H = thickness / 2, G = gap, T = thickness, ["1"] = 1 }
+	spread = spread or 0
+	local sizes = { H = thickness / 2, G = gap, T = thickness, L = length or M.ARM, ["1"] = 1 }
 	for _, r in ipairs(M.RECTS) do
 		if has(r.shapes, shape) then
-			local x0 = z * sum(r.x0, sizes) - grow + shift
-			local x1 = z * sum(r.x1, sizes) + grow + shift
-			local y0 = z * sum(r.y0, sizes) - grow - shift
-			local y1 = z * sum(r.y1, sizes) + grow - shift
+			local x0 = z * sum(r.x0, sizes) - grow - spread + shift
+			local x1 = z * sum(r.x1, sizes) + grow + spread + shift
+			local y0 = z * sum(r.y0, sizes) - grow - spread - shift
+			local y1 = z * sum(r.y1, sizes) + grow + spread - shift
 			local l, rr = round(c + k * x0), round(c + k * x1)
 			local b, t = round(c + k * y0), round(c + k * y1)
 			if rr <= l then rr = l + 1 end
@@ -270,19 +276,20 @@ end
 function M.layers(s, factor)
 	if not M.drawn(s.shape) then return {} end
 	local k = (s.scale or 1) * (factor or 1)
-	local thickness, gap = s.thickness or 1, s.gap or 0
+	local thickness, gap, length = s.thickness or 1, s.gap or 0, s.length or M.ARM
 	local c = M.centre(thickness * k)
 	-- Outline, spread and offset before the scale.
 	local edge = s.outline and (s.outline_thickness or 0) or 0
 	local offset = s.shadow_offset or 0
-	local function items(grow, shift, z)
-		local parts = M.parts(s.shape, M.ARM * k * z, gap * k * z, thickness * k * z)
-		local out = M.rect_items(s.shape, thickness, gap, k, c, grow, shift, nil, z)
-		return M.items(parts, grow * k, shift * k, c, out)
+	local function items(grow, shift, z, spread)
+		spread = spread or 0
+		local parts = M.parts(s.shape, length * k * z, gap * k * z, thickness * k * z)
+		local out = M.rect_items(s.shape, thickness, gap, k, c, grow, shift, nil, z, length, spread)
+		return M.items(parts, (grow + spread) * k, shift * k, c, out)
 	end
 	local out = {}
 	if s.shadow then
-		local shadow = items(edge + (s.shadow_spread or 0), offset, s.shadow_size or 1)
+		local shadow = items(edge, offset, s.shadow_size or 1, s.shadow_spread or 0)
 		for _, copy in ipairs(M.blur_copies(s.shadow_blur, k)) do
 			out[#out + 1] = { role = "blur", dx = copy.dx, dy = copy.dy, weight = copy.weight, items = M.moved(shadow, copy.dx, copy.dy) }
 		end

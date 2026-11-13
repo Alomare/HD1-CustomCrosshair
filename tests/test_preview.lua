@@ -34,6 +34,15 @@ local VARIANTS = {
 		shadow_size = 2, shadow_spread = 6, shadow_blur = 3 },
 	{ thickness = 2.5, gap = 1, scale = 1.1, outline = false, shadow = true, shadow_offset = 1, shadow_size = 0.75,
 		shadow_spread = 2.5, shadow_blur = 2, shadow_opacity = 0.1, opacity = 0.1 },
+	-- Lengths: none, short, odd, long, at the most.
+	{ thickness = 2, gap = 3, scale = 1, length = 0, outline = true, outline_thickness = 1, shadow = true, shadow_offset = 1 },
+	{ thickness = 1, gap = 2, scale = 1.3, length = 3.5, outline = true, outline_thickness = 0.51, shadow = true,
+		shadow_offset = 0, shadow_blur = 3, shadow_opacity = 0.2 },
+	{ thickness = 3, gap = 0, scale = 1, length = 13.37, outline = false, shadow = true, shadow_offset = 2, shadow_spread = 1.5 },
+	{ thickness = 2, gap = 6, scale = 0.8, length = 22, outline = true, outline_thickness = 2, shadow = true, shadow_size = 1.4,
+		shadow_spread = 0.5, shadow_blur = 1 },
+	{ thickness = 6, gap = 24, scale = 4, length = 40, outline = true, outline_thickness = 4, shadow = true, shadow_offset = 6,
+		shadow_size = 2, shadow_spread = 6, shadow_blur = 3 },
 }
 
 -- Option values for one state, from the defaults and a variant.
@@ -282,8 +291,8 @@ test("previews_draw_what_the_game_draws", function()
 end)
 
 -- The shadow rects as 0.1 worked them out: round(c + k * (sum - grow + shift)), no size, no spread.
-local function rects_0_1(shape, thickness, gap, k, c, grow, shift)
-	local sizes = { H = thickness / 2, G = gap, T = thickness, ["1"] = 1 }
+local function rects_0_1(shape, thickness, gap, k, c, grow, shift, length)
+	local sizes = { H = thickness / 2, G = gap, T = thickness, L = length, ["1"] = 1 }
 	local function total(list)
 		local s = 0
 		for _, t in ipairs(list) do s = s + t[1] * sizes[t[2]] end
@@ -322,8 +331,8 @@ test("default_shadow_settings_draw_what_0_1_drew", function()
 					local edge = s.outline and s.outline_thickness or 0
 					local c = shapes.centre(s.thickness * k)
 					local got, circles = expected(layers[1].items)
-					eq(got, (expected(rects_0_1(shape, s.thickness, s.gap, k, c, edge, s.shadow_offset))), shape .. " shadow rects")
-					local parts = shapes.parts(shape, shapes.ARM * k, s.gap * k, s.thickness * k)
+					eq(got, (expected(rects_0_1(shape, s.thickness, s.gap, k, c, edge, s.shadow_offset, s.length))), shape .. " shadow rects")
+					local parts = shapes.parts(shape, s.length * k, s.gap * k, s.thickness * k)
 					local _, old_circles = expected(shapes.items(parts, edge * k, s.shadow_offset * k, c))
 					eq(#circles, #old_circles, shape .. " shadow circles")
 					for i = 1, #old_circles do
@@ -360,11 +369,11 @@ end)
 
 local MARKERS = {
 	{},
-	{ hitmarker_size = 20, hitmarker_gap = 30, hitmarker_thickness = 6, aim_thickness = 1 },
+	{ hitmarker_size = 20, hitmarker_gap = 30, hitmarker_thickness = 6, hitmarker_outline = true, aim_thickness = 1 },
 	{ hitmarker_size = 2, hitmarker_gap = 0, hitmarker_thickness = 1, hitmarker_outline = false, aim_thickness = 3, aim_scale = 1.5 },
-	{ hitmarker_size = 9, hitmarker_gap = 4, hitmarker_thickness = 2.5, hitmarker_color = "#00ffcc", hitmarker_kill_color = "#3050ff" },
-	{ hitmarker_hits = false },
-	{ hitmarker_kills = false, hitmarker_size = 14 },
+	{ hitmarker_size = 9, hitmarker_gap = 4, hitmarker_thickness = 2.5, hitmarker_outline = true, hitmarker_color = "#00ffcc", hitmarker_kill_color = "#3050ff" },
+	{ hitmarker_hits = false, hitmarker_outline = true },
+	{ hitmarker_kills = false, hitmarker_size = 14, hitmarker_outline = true, hitmarker_kill_scale = 1.5 },
 	{ hitmarker = false },
 }
 

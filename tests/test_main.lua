@@ -6,8 +6,20 @@ local function test(name, fn) T[#T + 1] = { name, fn } end
 local ITP = "alomare.integratedthirdperson"
 local MOUSE = { x = 500, y = 300 }
 
-local function setup(options)
+-- The look of 0.4.0, which the tests below measure against: the defaults since 0.5.0 differ.
+local LOOK = {
+	idle_shape = "circle", idle_gap = 4, idle_thickness = 1, idle_opacity = 0.6, idle_outline = true,
+	aim_shape = "cross_dot", aim_gap = 4, aim_thickness = 2, aim_opacity = 1, aim_outline = true, aim_outline_thickness = 1,
+	aim_shadow = false, aim_shadow_opacity = 0.5, aim_shadow_offset = 2, aim_shadow_blur = 0,
+	hitmarker_color = "#ff2d23", hitmarker_kill_color = "#ff2d23", hitmarker_opacity = 0.6, hitmarker_kill_scale = 1.5,
+	hitmarker_outline = true,
+}
+
+local function setup(options, defaults)
 	SET, BITMAPS = {}, {}
+	if not defaults then
+		for k, v in pairs(LOOK) do if OPTIONS[k] == nil then OPTIONS[k] = v end end
+	end
 	MOUSE.x, MOUSE.y = 500, 300
 	-- A long frame finishes every fade at once; one test below covers the fade.
 	rawset(_G, "ENGINE_DT", 1)
@@ -279,7 +291,38 @@ test("a_state_on_game_takes_the_default_look_in_third_person", function()
 	setup({ aim_shape = "game", idle_shape = "dot" })
 	startup()
 	frame()
-	assert(has_rect(862, 105, 99, 8, 2), "default cross with dot")
+	-- The default aiming cross: 3 thick, gap 2, so the right arm starts 4 out from the aim pixel.
+	assert(has_rect(862, 104, 99, 8, 3), "default cross")
+end)
+
+test("third_person_shows_the_aiming_look_while_firing", function()
+	local spot = { x = 960.7, y = 540.2, aiming = false, firing = true }
+	IMPORTS[ITP] = { claim_crosshair = function() return true end, crosshair = function() return spot end }
+	setup()
+	startup()
+	CursorManager.shown = false
+	frame()
+	assert(has_rect(862, 965, 539, 8, 2), "aiming cross while fire is held")
+	spot.firing = false
+	kit().calls = {}
+	frame()
+	eq(#rects_at(862), 0, "idle circle once fire is let go")
+	-- Integrated Third Person before 0.4.2 sends no firing at all.
+	spot.firing = nil
+	kit().calls = {}
+	frame()
+	eq(#rects_at(862), 0, "idle without the field")
+end)
+
+test("the_defaults_draw_the_default_look", function()
+	setup({}, true)
+	frame()
+	-- Cross 3 thick, gap 2, 8 long, at 0.95, with a thin outline and a soft shadow behind.
+	local arm = has_rect(862, 504, 299, 8, 3)
+	assert(arm, "right arm")
+	eq(arm.c[4], 242, "0.95 opacity")
+	assert(#rects_at(861) == 4, "outline")
+	eq(#rects_at(860), 4 * (1 + 24), "the shadow and three rings of eight copies")
 end)
 
 test("the_cursor_flying_back_is_caught_and_drawn_shrinking", function()
