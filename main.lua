@@ -23,7 +23,7 @@
 local shapes = obsidian.module("src/shapes")
 local hitmarker = obsidian.module("src/hitmarker")
 
-local VERSION = "0.3.1"
+local VERSION = "0.4.0"
 local MOD_ID = "alomare.customcrosshair"
 local ITP_ID = "alomare.integratedthirdperson"
 local API_ID = "obsidian.api"
