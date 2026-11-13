@@ -326,4 +326,31 @@ function M.settings(prefix, get)
 	return s
 end
 
+-- Aiming gap scales with spread: the gap of the aiming crosshair opens by up to SPREAD_GAP pixels
+-- (before the scale) as the spread of the weapon grows from least to most. The firearm of the game keeps
+-- the spread it fires with now in the firearm state (FirearmComponent: spread, from spread_min to spread_max as
+-- shots are fired, and back as they decay).
+M.SPREAD_GAP = 12
+
+-- How far the spread is between least and most, from 0 to 1, from the state of a firearm.
+function M.spread_fraction(st)
+	if type(st) ~= "table" or st.fixed_spread then return 0 end
+	local now, low, high = tonumber(st.spread), tonumber(st.spread_min), tonumber(st.spread_max)
+	if not (now and low and high) or high <= low then return 0 end
+	return math.max(0, math.min(1, (now - low) / (high - low)))
+end
+
+-- The extra gap in whole pixels for a fraction, so a few looks cover every spread.
+function M.spread_extra(fraction)
+	return math.floor((fraction or 0) * M.SPREAD_GAP + 0.5)
+end
+
+-- A copy of settings s with `extra` pixels on the gap.
+function M.with_gap(s, extra)
+	local out = {}
+	for k, v in pairs(s) do out[k] = v end
+	out.gap = (s.gap or 0) + (extra or 0)
+	return out
+end
+
 return M

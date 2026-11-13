@@ -13,16 +13,17 @@ Custom Crosshair is a client mod: it works in any lobby, and only this player se
 - **Custom crosshair**: on or off.
 - **Third person crosshair**: with Integrated Third Person, draws this crosshair where shots go, in place of the one from that mod.
 
-**Idle** and **Aiming** each have the same settings, kept apart:
+**Idle** and **Aiming** each have the same settings, kept apart. Number settings go in steps of 0.01 and start at 0:
 
 - **Shape**: cross, cross with dot, dot, circle, circle with dot, circle with cross, T (a cross without the top arm), chevron, brackets, Game cursor (the cursor of the game for that state) or None.
 - **Scale**: the whole crosshair, outline and shadow included.
 - **Gap**: pixels between the center line and the arms. Circles, brackets and the chevron sit wider with a larger gap.
+- **Aiming gap scales with spread** (Aiming only, on by default): the aiming gap opens by up to 12 pixels as the spread of the weapon in hand grows while firing, and closes as the spread settles.
 - **Thickness**: line width in pixels. The dot is twice as wide.
 - **Color** and **Opacity**.
 - **Outline**: a border around every line, with a color and a thickness.
 - **Shadow**: a copy behind the crosshair, moved down and to the right, with a color, an opacity and an offset, and three more settings:
-  - **Shadow size**: scales the shadow around the center of the crosshair, from half to twice the size of the lines. At 1 the shadow matches the lines.
+  - **Shadow size**: scales the shadow around the center of the crosshair, from nothing to twice the size of the lines. At 1 the shadow matches the lines.
   - **Shadow spread**: widens the shadow by up to 6 pixels on every side, past the outline.
   - **Shadow blur**: up to 3 pixels of soft edge, made of rings of fainter copies of the shadow, eight copies to a ring and one ring for each pixel. At 0 the edge stays sharp.
 

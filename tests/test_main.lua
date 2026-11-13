@@ -354,10 +354,14 @@ local RIFLE, GRENADE = "rifle", "grenade"
 -- inventory of this player.
 local function fake_api()
 	local api = { listeners = { hit = {}, kill = {} } }
+	-- As the game's states: tables that live on, not made for each call.
+	api.inventory = { primary_weapon = RIFLE, current_weapon = RIFLE }
+	api.firearm = { spread = 1, spread_min = 1, spread_max = 5 }
 	api.game = {
 		my_unit = function() return ME end,
 		master = function(unit, component)
-			if unit == ME and component == "inventory" then return { primary_weapon = RIFLE } end
+			if unit == ME and component == "inventory" then return api.inventory end
+			if unit == RIFLE and component == "firearm" then return api.firearm end
 			return nil
 		end,
 	}
@@ -560,6 +564,28 @@ test("in_third_person_the_mark_goes_round_the_aim_point", function()
 	kit().calls = {}
 	frame()
 	eq(#polys_at(864), 0, "hidden under a menu")
+end)
+
+test("the_aiming_gap_opens_with_the_spread_of_the_weapon_in_hand", function()
+	local shapes = obsidian.module("src/shapes")
+	local api = with_api({})
+	frame()
+	assert(has_rect(862, 505, 299, 8, 2), "no spread: the gap set")
+	api.firearm.spread = 5
+	kit().calls = {}
+	frame()
+	assert(has_rect(862, 505 + shapes.SPREAD_GAP, 299, 8, 2), "the most spread: the gap opens all the way")
+	api.firearm.spread = 3
+	kit().calls = {}
+	frame()
+	assert(has_rect(862, 505 + shapes.SPREAD_GAP / 2, 299, 8, 2), "half way")
+	api.firearm.spread = 1
+	with_api({ aim_gap_spread = false })
+	api = IMPORTS["obsidian.api"]
+	api.firearm.spread = 5
+	kit().calls = {}
+	frame()
+	assert(has_rect(862, 505, 299, 8, 2), "option off: the gap stays")
 end)
 
 test("the_mark_sits_on_the_centre_of_an_odd_crosshair", function()

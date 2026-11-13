@@ -126,6 +126,41 @@ local function flying_look(f)
 	return look
 end
 
+-- Aiming gap scales with spread (option aim_gap_spread): the aiming look with the gap opened by whole
+-- pixels as the held weapon's spread grows, each made once.
+local spread_on = obsidian.settings.get("aim_gap_spread") ~= false and hide.aim
+local game_api = nil
+if spread_on then
+	local ok, mod = pcall(obsidian.import, API_ID)
+	if ok and type(mod) == "table" and type(mod.game) == "table" and type(mod.game.master) == "function" then game_api = mod end
+end
+local spread_looks = {}
+
+local function spread_now()
+	if not game_api then return 0 end
+	local ok, player = pcall(game_api.game.my_unit)
+	if not ok or player == nil then return 0 end
+	local ok_i, inventory = pcall(game_api.game.master, player, "inventory")
+	local weapon = ok_i and type(inventory) == "table" and inventory.current_weapon or nil
+	if weapon == nil then return 0 end
+	local ok_f, firearm = pcall(game_api.game.master, weapon, "firearm")
+	if not ok_f then return 0 end
+	return shapes.spread_fraction(firearm)
+end
+
+-- The aiming look for the spread now: the plain one at none.
+local function spread_look(base)
+	if not spread_on or base ~= looks.aim then return base end
+	local extra = shapes.spread_extra(spread_now())
+	if extra <= 0 then return base end
+	local look = spread_looks[extra]
+	if not look then
+		look = compile(shapes.with_gap(settings.aim, extra))
+		spread_looks[extra] = look
+	end
+	return look
+end
+
 local kit = ui.canvas("crosshair", { layer = LAYER })
 
 -- Draws a look with the aim point on pixel (x, y), from the bottom left. alpha fades all of it.
@@ -323,13 +358,14 @@ local function draw_state(pick, aiming, x, y)
 		local step = frame_time() / FADE
 		blend = target > blend and math.min(target, blend + step) or math.max(target, blend - step)
 	end
+	local aim = blend > 0 and spread_look(pick.aim) or pick.aim
 	if blend >= 1 then
-		draw(pick.aim, x, y)
+		draw(aim, x, y)
 	elseif blend <= 0 then
 		draw(pick.idle, x, y)
 	else
 		draw(pick.idle, x, y, 1 - blend)
-		draw(pick.aim, x, y, blend)
+		draw(aim, x, y, blend)
 	end
 	return (blend >= 0.5 and pick.aim or pick.idle).centre
 end
