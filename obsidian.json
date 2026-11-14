@@ -6,7 +6,7 @@
     "en": "Custom Crosshair"
   },
   "description": {
-    "en": "Replaces the aim cursor with a crosshair built from shapes, one look between shots and one while aiming: shape, scale, gap, length, thickness, color, opacity, outline and a shadow that can be soft, with a live preview. A hitmarker flashes at the crosshair on hits and kills. Works in the top-down view and with Integrated Third Person."
+    "en": "Replaces the aim cursor with a custom crosshair and adds a hitmarker."
   },
   "authors": [
     "Alomare"
