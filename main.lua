@@ -8,7 +8,7 @@
 -- with "_large" after it when the large cursor is on. A hook on Window.set_cursor swaps the game
 -- cursor of each state whose shape isn't "game" for the invisible one, and leaves every other cursor
 -- alone. Every frame the crosshair is drawn with obsidian.ui.canvas at the mouse, in the look of the
--- state CursorManager asked for. With Unleashed Camera steering the view, it is drawn where that
+-- state CursorManager asked for. With Eyes of Liberty steering the view, it is drawn where that
 -- mod says shots go instead.
 --
 -- With the game option that keeps the crosshair up turned off, the game hides the cursor between
@@ -24,10 +24,11 @@ local shapes = obsidian.module("src/shapes")
 local hitmarker = obsidian.module("src/hitmarker")
 local spin = obsidian.module("src/spin")
 
-local VERSION = "0.6.2"
+local VERSION = "0.6.3"
 local MOD_ID = "alomare.customcrosshair"
--- Unleashed Camera: the id since 0.8.0, then the id it had before (Integrated Third Person).
-local ITP_IDS = { "alomare.unleashedcamera", "alomare.integratedthirdperson" }
+-- Eyes of Liberty: the id it has now, then the ids it had before (Eyes of Liberty from 0.8.0 to 0.9.1,
+-- Integrated Third Person before that).
+local ITP_IDS = { "alomare.eyesofliberty", "alomare.unleashedcamera", "alomare.integratedthirdperson" }
 local API_ID = "obsidian.api"
 
 -- Under the in-game menu of Obsidian (876). The shadow with the blur copies, the outline and the lines
@@ -335,8 +336,8 @@ if hide.aim then
 	end)
 end
 
--- Unleashed Camera: where shots go while it steers the view. `claimed` while this mod draws the
--- crosshair there; with both states on "game" Unleashed Camera keeps the built-in crosshair, and
+-- Eyes of Liberty: where shots go while it steers the view. `claimed` while this mod draws the
+-- crosshair there; with both states on "game" Eyes of Liberty keeps the built-in crosshair, and
 -- the hitmarker goes around that one.
 local itp, claimed = nil, false
 local function third_person()
@@ -356,15 +357,15 @@ local function join_itp()
 	if not (ok and type(mod) == "table" and type(mod.crosshair) == "function") then return end
 	itp = mod
 	if not crosshair then
-		obsidian.log("custom crosshair: hitmarker around the crosshair of Unleashed Camera")
+		obsidian.log("custom crosshair: hitmarker around the crosshair of Eyes of Liberty")
 		return
 	end
 	if type(mod.claim_crosshair) == "function" then
 		local done, err = pcall(mod.claim_crosshair, MOD_ID)
-		if not done then obsidian.log("custom crosshair: Unleashed Camera refused the crosshair: " .. tostring(err)) end
+		if not done then obsidian.log("custom crosshair: Eyes of Liberty refused the crosshair: " .. tostring(err)) end
 	end
 	claimed = true
-	obsidian.log("custom crosshair: drawing the crosshair of Unleashed Camera")
+	obsidian.log("custom crosshair: drawing the crosshair of Eyes of Liberty")
 end
 
 if type(obsidian.after_startup) == "function" then
@@ -388,7 +389,7 @@ end
 
 -- Moves the blend toward the state shown now, then draws one look, or both while they cross. Answers
 -- where the centre sits in the aim pixel, from the look that shows the most. opacity (0 to 1, 1 when
--- left out) fades the whole crosshair: Unleashed Camera fades it while sprinting.
+-- left out) fades the whole crosshair: Eyes of Liberty fades it while sprinting.
 local function draw_state(pick, aiming, x, y, opacity)
 	local o = type(opacity) == "number" and math.max(0, math.min(1, opacity)) or 1
 	local target = aiming and 1 or 0
@@ -494,7 +495,7 @@ end
 
 local first_person_on = option("first_person", true) ~= false
 
--- Whether Unleashed Camera draws the first person view now.
+-- Whether Eyes of Liberty draws the first person view now.
 local function first_person()
 	if not (itp and type(itp.mode) == "function") then return false end
 	local ok, mode = pcall(itp.mode)
@@ -513,8 +514,8 @@ local function frame()
 			blend = nil
 		else
 			-- Aiming while the aim button, fire or a throw is held, as the game picks the cursor in the
-			-- top-down view. Unleashed Camera before 0.4.2 reports no firing.
-			-- Unleashed Camera 0.6.0 and later fade the crosshair while sprinting.
+			-- top-down view. Eyes of Liberty before 0.4.2 reports no firing.
+			-- Eyes of Liberty 0.6.0 and later fade the crosshair while sprinting.
 			-- First person with First person crosshair off: no crosshair at all.
 			local fade = spot.fade
 			if not first_person_on and first_person() then fade = 0 end

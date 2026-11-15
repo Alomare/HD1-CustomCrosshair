@@ -1,9 +1,9 @@
 -- main.lua against stand-ins for the engine: which cursors go, where and how the crosshair is drawn,
--- Unleashed Camera, and the cursor flying back to the Helldiver.
+-- Eyes of Liberty, and the cursor flying back to the Helldiver.
 local T = {}
 local function test(name, fn) T[#T + 1] = { name, fn } end
 
-local ITP = "alomare.unleashedcamera"
+local ITP = "alomare.eyesofliberty"
 local MOUSE = { x = 500, y = 300 }
 
 -- The look of 0.4.0, which the tests below measure against: the defaults since 0.5.0 differ.
@@ -326,7 +326,7 @@ test("third_person_shows_the_aiming_look_while_firing", function()
 	kit().calls = {}
 	frame()
 	eq(#rects_at(862), 0, "idle circle once fire is let go")
-	-- Unleashed Camera before 0.4.2 sends no firing at all.
+	-- Eyes of Liberty before 0.4.2 sends no firing at all.
 	spot.firing = nil
 	kit().calls = {}
 	frame()
@@ -599,7 +599,7 @@ test("both_states_on_game_still_flash_the_mark_at_the_mouse", function()
 	local api = with_api({ idle_shape = "game", aim_shape = "game" })
 	eq(#HOOKS, 0, "game cursors left alone")
 	startup()
-	eq(claimed, false, "Unleashed Camera keeps the built-in crosshair")
+	eq(claimed, false, "Eyes of Liberty keeps the built-in crosshair")
 	api.hit(BUG, RIFLE_HIT)
 	frame()
 	eq(#rects_at(), 0, "no crosshair")

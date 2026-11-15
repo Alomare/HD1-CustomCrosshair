@@ -8,7 +8,7 @@ Custom Crosshair replaces the aim cursor with a crosshair built from shapes, wit
 
 The settings are in the Options tab of Custom Crosshair in Obsidian, with a live preview. A change applies at the next launch of the game.
 
-With Unleashed Camera, the crosshair goes where shots land. Turn off **Third person crosshair** to keep the crosshair of the game there instead, or **First person crosshair** for no crosshair in first person.
+With Eyes of Liberty, the crosshair goes where shots land. Turn off **Third person crosshair** to keep the crosshair of the game there instead, or **First person crosshair** for no crosshair in the first person camera of the Eyes of Liberty beta.
 
 ## Known issues
 

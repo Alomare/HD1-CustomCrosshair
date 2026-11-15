@@ -1,7 +1,7 @@
 {
   "obsidian": 1,
   "id": "alomare.customcrosshair",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "name": {
     "en": "Custom Crosshair"
   },
@@ -46,10 +46,10 @@
       "description": { "en": "Draws the crosshair set here in place of the game cursor, in missions and on the ship. The menu cursor stays as it is." } },
     { "id": "third_person", "type": "toggle", "default": true, "group": "general",
       "label": { "en": "Third person crosshair" },
-      "description": { "en": "With Unleashed Camera, draws this crosshair where shots go, in place of the one from that mod. The game has no cursor in third person, so a state set to Game cursor uses the default look there." } },
+      "description": { "en": "With Eyes of Liberty, draws this crosshair where shots go, in place of the one from that mod. The game has no cursor in third person, so a state set to Game cursor uses the default look there." } },
     { "id": "first_person", "type": "toggle", "default": true, "group": "general",
       "label": { "en": "First person crosshair" },
-      "description": { "en": "In the first person camera of Unleashed Camera, draws this crosshair. Off leaves first person with no crosshair at all." } },
+      "description": { "en": "In the first person camera of the Eyes of Liberty beta, draws this crosshair. Off leaves first person with no crosshair at all." } },
     { "id": "laser_spin", "type": "toggle", "default": true, "group": "general",
       "label": { "en": "Laser spin" },
       "description": { "en": "While a laser weapon fires, the crosshair spins up to one turn a second within 0.05 seconds, and winds down over half a second once firing stops." } },
