@@ -23,7 +23,7 @@
 local shapes = obsidian.module("src/shapes")
 local hitmarker = obsidian.module("src/hitmarker")
 
-local VERSION = "0.5.0"
+local VERSION = "0.5.1"
 local MOD_ID = "alomare.customcrosshair"
 local ITP_ID = "alomare.integratedthirdperson"
 local API_ID = "obsidian.api"
@@ -349,8 +349,10 @@ local function frame_time()
 end
 
 -- Moves the blend toward the state shown now, then draws one look, or both while they cross. Answers
--- where the centre sits in the aim pixel, from the look that shows the most.
-local function draw_state(pick, aiming, x, y)
+-- where the centre sits in the aim pixel, from the look that shows the most. opacity (0 to 1, 1 when
+-- left out) fades the whole crosshair: Integrated Third Person fades it while sprinting.
+local function draw_state(pick, aiming, x, y, opacity)
+	local o = type(opacity) == "number" and math.max(0, math.min(1, opacity)) or 1
 	local target = aiming and 1 or 0
 	if blend == nil then
 		blend = target
@@ -359,15 +361,18 @@ local function draw_state(pick, aiming, x, y)
 		blend = target > blend and math.min(target, blend + step) or math.max(target, blend - step)
 	end
 	local aim = blend > 0 and spread_look(pick.aim) or pick.aim
+	local centre = (blend >= 0.5 and pick.aim or pick.idle).centre
+	if o <= 0.01 then return centre end
+	local full = o < 1 and o or nil
 	if blend >= 1 then
-		draw(aim, x, y)
+		draw(aim, x, y, full)
 	elseif blend <= 0 then
-		draw(pick.idle, x, y)
+		draw(pick.idle, x, y, full)
 	else
-		draw(pick.idle, x, y, 1 - blend)
-		draw(aim, x, y, blend)
+		draw(pick.idle, x, y, (1 - blend) * o)
+		draw(aim, x, y, blend * o)
 	end
-	return (blend >= 0.5 and pick.aim or pick.idle).centre
+	return centre
 end
 
 -- The hitmarker: a look for each kind of mark and each place the centre can sit in the aim pixel, and
@@ -460,7 +465,8 @@ local function frame()
 		else
 			-- Aiming while the aim button, fire or a throw is held, as the game picks the cursor in the
 			-- top-down view. Integrated Third Person before 0.4.2 reports no firing.
-			if claimed then mc = draw_state(third_looks, spot.aiming or spot.firing, spot.x, spot.y) end
+			-- Integrated Third Person 0.6.0 and later fade the crosshair while sprinting.
+			if claimed then mc = draw_state(third_looks, spot.aiming or spot.firing, spot.x, spot.y, spot.fade) end
 			mx, my = spot.x, spot.y
 		end
 	else

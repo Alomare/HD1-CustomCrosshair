@@ -2,6 +2,10 @@
 
 New, changed, fixed or removed features, one line each, brief and direct. The section for a release becomes the release notes.
 
+## 0.5.1
+
+- New: the crosshair fades out while sprinting in Integrated Third Person 0.6.0 and later.
+
 ## 0.5.0
 
 - New: Idle length and Aiming length set how long each line is, 8 pixels by default. Circles, brackets and the chevron grow with it.

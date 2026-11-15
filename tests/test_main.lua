@@ -268,6 +268,22 @@ test("third_person_claims_the_crosshair_and_draws_at_the_aim_point", function()
 	eq(#kit().calls, 0, "hidden while the menu cursor shows")
 end)
 
+test("third_person_fades_the_crosshair_while_sprinting", function()
+	local spot = { x = 960.7, y = 540.2, aiming = true, fade = 0.5 }
+	IMPORTS[ITP] = { claim_crosshair = function() return true end, crosshair = function() return spot end }
+	setup()
+	startup()
+	CursorManager.shown = false
+	frame()
+	local half = false
+	for _, c in ipairs(kit().calls) do if c.alpha == 0.5 then half = true end end
+	assert(half, "drawn at half opacity")
+	spot.fade = 0
+	kit().calls = {}
+	frame()
+	eq(#rects_at(862), 0, "gone at full sprint")
+end)
+
 test("third_person_falls_back_to_the_mouse_when_the_view_is_top_down", function()
 	IMPORTS[ITP] = { claim_crosshair = function() end, crosshair = function() return nil end }
 	setup()
