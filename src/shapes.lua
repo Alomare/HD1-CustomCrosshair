@@ -25,13 +25,13 @@ M.MIN_SIDES, M.MAX_SIDES = 12, 96
 -- tests/test_manifest.lua keeps the two the same.
 M.DEFAULTS = {
 	idle = {
-		shape = "circle", scale = 1, gap = 0, length = 8, thickness = 3, color = "#ffffff", opacity = 0.4,
+		shape = "dot", scale = 1, gap = 0, length = 8, thickness = 3, color = "#ffffff", opacity = 0.8,
 		outline = false, outline_color = "#000000", outline_thickness = 1,
-		shadow = false, shadow_color = "#000000", shadow_opacity = 0.5, shadow_offset = 2,
-		shadow_size = 1, shadow_spread = 0, shadow_blur = 0,
+		shadow = true, shadow_color = "#000000", shadow_opacity = 0.2, shadow_offset = 0,
+		shadow_size = 1, shadow_spread = 0, shadow_blur = 3,
 	},
 	aim = {
-		shape = "cross", scale = 1, gap = 2, length = 8, thickness = 3, color = "#ffffff", opacity = 0.95,
+		shape = "cross", scale = 1, gap = 3, length = 10, thickness = 3, color = "#ffffff", opacity = 0.95,
 		outline = true, outline_color = "#000000", outline_thickness = 0.51,
 		shadow = true, shadow_color = "#000000", shadow_opacity = 0.2, shadow_offset = 0,
 		shadow_size = 1, shadow_spread = 0, shadow_blur = 3,
@@ -340,8 +340,14 @@ end
 M.SPREAD_GAP = 12
 
 -- How far the spread is between least and most, from 0 to 1, from the state of a firearm.
+-- The game works spread out only when a shot goes off (FirearmComponent.calculate_recoil: spread_min
+-- to spread_max by spread_shots_fired / spread_shots_max), while spread_shots_fired goes down every
+-- frame without a shot. The shot count answers first, so the gap closes as the spread recovers instead
+-- of at the next shot.
 function M.spread_fraction(st)
 	if type(st) ~= "table" or st.fixed_spread then return 0 end
+	local shots, most = tonumber(st.spread_shots_fired), tonumber(st.spread_shots_max)
+	if shots and most and most > 0 then return math.max(0, math.min(1, shots / most)) end
 	local now, low, high = tonumber(st.spread), tonumber(st.spread_min), tonumber(st.spread_max)
 	if not (now and low and high) or high <= low then return 0 end
 	return math.max(0, math.min(1, (now - low) / (high - low)))

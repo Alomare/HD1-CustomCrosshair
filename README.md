@@ -8,7 +8,7 @@ Custom Crosshair replaces the aim cursor with a crosshair built from shapes, wit
 
 The settings are in the Options tab of Custom Crosshair in Obsidian, with a live preview. A change applies at the next launch of the game.
 
-With Integrated Third Person, the crosshair goes where shots land. Turn off **Third person crosshair** to keep the crosshair of that mod instead.
+With Integrated Third Person, the crosshair goes where shots land. Turn off **Third person crosshair** to keep the crosshair of the game there instead, or **First person crosshair** for no crosshair in first person.
 
 ## Known issues
 

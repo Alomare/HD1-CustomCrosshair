@@ -22,8 +22,9 @@
 -- teammate, a bot or a second controller. With the hitmarker off, nothing listens.
 local shapes = obsidian.module("src/shapes")
 local hitmarker = obsidian.module("src/hitmarker")
+local spin = obsidian.module("src/spin")
 
-local VERSION = "0.5.1"
+local VERSION = "0.6.0"
 local MOD_ID = "alomare.customcrosshair"
 local ITP_ID = "alomare.integratedthirdperson"
 local API_ID = "obsidian.api"
@@ -129,8 +130,10 @@ end
 -- Aiming gap scales with spread (option aim_gap_spread): the aiming look with the gap opened by whole
 -- pixels as the held weapon's spread grows, each made once.
 local spread_on = obsidian.settings.get("aim_gap_spread") ~= false and hide.aim
+-- Laser spin (option laser_spin): the crosshair turns while a laser weapon of this player fires.
+local spin_on = option("laser_spin", true) ~= false and crosshair
 local game_api = nil
-if spread_on then
+if spread_on or spin_on then
 	local ok, mod = pcall(obsidian.import, API_ID)
 	if ok and type(mod) == "table" and type(mod.game) == "table" and type(mod.game.master) == "function" then game_api = mod end
 end
@@ -148,6 +151,20 @@ local function spread_now()
 	return shapes.spread_fraction(firearm)
 end
 
+-- Whether this player's weapon in hand is a laser (a beam weapon) and fires now: firing_auto while the
+-- trigger is held, firing_single for a single shot (beamweapon_component.lua command_master).
+local function laser_firing()
+	if not game_api then return false end
+	local ok, player = pcall(game_api.game.my_unit)
+	if not ok or player == nil then return false end
+	local ok_i, inventory = pcall(game_api.game.master, player, "inventory")
+	local weapon = ok_i and type(inventory) == "table" and inventory.current_weapon or nil
+	if weapon == nil then return false end
+	local ok_b, beam = pcall(game_api.game.master, weapon, "beamweapon")
+	return ok_b and type(beam) == "table" and (beam.firing_auto == true or beam.firing_single == true)
+end
+local spinning = spin.new(spin.square_for(settings.idle.shape, settings.aim.shape))
+
 -- The aiming look for the spread now: the plain one at none.
 local function spread_look(base)
 	if not spread_on or base ~= looks.aim then return base end
@@ -164,23 +181,39 @@ end
 local kit = ui.canvas("crosshair", { layer = LAYER })
 
 -- Draws a look with the aim point on pixel (x, y), from the bottom left. alpha fades all of it.
-local function draw(look, x, y, alpha)
+-- angle: degrees the look turns about the aim point (the laser spin); rects become polygons then.
+local function draw(look, x, y, alpha, angle)
 	if not look or #look == 0 then return end
 	x, y = math.floor(x), math.floor(y)
 	if alpha then kit:opacity(alpha) end
+	local c, s, cx, cy = nil, nil, nil, nil
+	if angle and angle % 360 ~= 0 then
+		local r = math.rad(angle)
+		c, s = math.cos(r), math.sin(r)
+		cx, cy = x + (look.centre or 0.5), y + (look.centre or 0.5)
+	end
 	for li = 1, #look do
 		local layer = look[li]
 		kit:layer(layer.z)
 		local color, items = layer.color, layer.items
 		for i = 1, #items do
 			local it = items[i]
-			if it.kind == "rect" then
+			if it.kind == "rect" and not c then
 				kit:rect(x + it.x, y + it.y, it.w, it.h, color)
+			elseif it.kind == "rect" then
+				local x0, y0 = x + it.x, y + it.y
+				local corners = it.corners or {}
+				it.corners = corners
+				corners[1], corners[2], corners[3], corners[4] = x0, y0, x0 + it.w, y0
+				corners[5], corners[6], corners[7], corners[8] = x0 + it.w, y0 + it.h, x0, y0 + it.h
+				it.turned = spin.turn(corners, cx, cy, c, s, it.turned or {})
+				kit:poly(it.turned, color)
 			else
 				local pts, buf = it.pts, it.buf
 				for j = 1, #pts, 2 do
 					buf[j], buf[j + 1] = x + pts[j], y + pts[j + 1]
 				end
+				if c then spin.turn(buf, cx, cy, c, s, buf) end
 				kit:poly(buf, color)
 			end
 		end
@@ -364,13 +397,14 @@ local function draw_state(pick, aiming, x, y, opacity)
 	local centre = (blend >= 0.5 and pick.aim or pick.idle).centre
 	if o <= 0.01 then return centre end
 	local full = o < 1 and o or nil
+	local turn = spinning.angle ~= 0 and spinning.angle or nil
 	if blend >= 1 then
-		draw(aim, x, y, full)
+		draw(aim, x, y, full, turn)
 	elseif blend <= 0 then
-		draw(pick.idle, x, y, full)
+		draw(pick.idle, x, y, full, turn)
 	else
-		draw(pick.idle, x, y, (1 - blend) * o)
-		draw(aim, x, y, blend * o)
+		draw(pick.idle, x, y, (1 - blend) * o, turn)
+		draw(aim, x, y, blend * o, turn)
 	end
 	return centre
 end
@@ -453,9 +487,19 @@ if marker then
 	end
 end
 
+local first_person_on = option("first_person", true) ~= false
+
+-- Whether Integrated Third Person draws the first person view now.
+local function first_person()
+	if not (itp and type(itp.mode) == "function") then return false end
+	local ok, mode = pcall(itp.mode)
+	return ok and mode == "first"
+end
+
 local function frame()
 	local cm = rawget(_G, "CursorManager")
 	if crosshair and type(cm) == "table" then patch_cursor_manager(cm) end
+	if spin_on then spin.step(spinning, laser_firing(), frame_time()) end
 	local spot = third_person()
 	-- Where the hitmarker goes: the aim point of the crosshair, while one is up.
 	local mx, my, mc = nil, nil, 0.5
@@ -466,7 +510,10 @@ local function frame()
 			-- Aiming while the aim button, fire or a throw is held, as the game picks the cursor in the
 			-- top-down view. Integrated Third Person before 0.4.2 reports no firing.
 			-- Integrated Third Person 0.6.0 and later fade the crosshair while sprinting.
-			if claimed then mc = draw_state(third_looks, spot.aiming or spot.firing, spot.x, spot.y, spot.fade) end
+			-- First person with First person crosshair off: no crosshair at all.
+			local fade = spot.fade
+			if not first_person_on and first_person() then fade = 0 end
+			if claimed then mc = draw_state(third_looks, spot.aiming or spot.firing, spot.x, spot.y, fade) end
 			mx, my = spot.x, spot.y
 		end
 	else

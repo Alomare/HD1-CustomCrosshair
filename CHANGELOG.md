@@ -2,9 +2,13 @@
 
 New, changed, fixed or removed features, one line each, brief and direct. The section for a release becomes the release notes.
 
-## 0.5.1
+## 0.6.0
 
 - New: the crosshair fades out while sprinting in Integrated Third Person 0.6.0 and later.
+- New: First person crosshair option, for the first person camera of Integrated Third Person. Off leaves first person with no crosshair.
+- New: Laser spin option, on by default. While a laser weapon fires, the crosshair spins up to one turn a second, and winds down over about half a second once firing stops, ending upright.
+- Changed: new default look: a dot between shots, and a longer cross with a wider gap while aiming, both with a soft shadow. The hitmarker is smaller and thicker by default, and the kill mark a little bigger.
+- Fixed: with Aiming gap scales with spread, the gap stayed open after firing until the next shot, instead of closing as the spread recovers.
 
 ## 0.5.0
 

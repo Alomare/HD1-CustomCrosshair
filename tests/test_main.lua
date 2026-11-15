@@ -13,6 +13,9 @@ local LOOK = {
 	aim_shadow = false, aim_shadow_opacity = 0.5, aim_shadow_offset = 2, aim_shadow_blur = 0,
 	hitmarker_color = "#ff2d23", hitmarker_kill_color = "#ff2d23", hitmarker_opacity = 0.6, hitmarker_kill_scale = 1.5,
 	hitmarker_outline = true,
+	-- Defaults that changed in 0.5.1, held at the values the tests measure against.
+	aim_length = 8, idle_shadow = false, idle_shadow_blur = 0, idle_shadow_offset = 2, idle_shadow_opacity = 0.5,
+	hitmarker_size = 12, hitmarker_thickness = 2,
 }
 
 local function setup(options, defaults)
@@ -307,8 +310,8 @@ test("a_state_on_game_takes_the_default_look_in_third_person", function()
 	setup({ aim_shape = "game", idle_shape = "dot" })
 	startup()
 	frame()
-	-- The default aiming cross: 3 thick, gap 2, so the right arm starts 4 out from the aim pixel.
-	assert(has_rect(862, 104, 99, 8, 3), "default cross")
+	-- The default aiming cross: 3 thick, gap 3, 10 long, so the right arm starts 5 out from the aim pixel.
+	assert(has_rect(862, 105, 99, 10, 3), "default cross")
 end)
 
 test("third_person_shows_the_aiming_look_while_firing", function()
@@ -333,8 +336,8 @@ end)
 test("the_defaults_draw_the_default_look", function()
 	setup({}, true)
 	frame()
-	-- Cross 3 thick, gap 2, 8 long, at 0.95, with a thin outline and a soft shadow behind.
-	local arm = has_rect(862, 504, 299, 8, 3)
+	-- Cross 3 thick, gap 3, 10 long, at 0.95, with a thin outline and a soft shadow behind.
+	local arm = has_rect(862, 505, 299, 10, 3)
 	assert(arm, "right arm")
 	eq(arm.c[4], 242, "0.95 opacity")
 	assert(#rects_at(861) == 4, "outline")
@@ -437,8 +440,9 @@ local function fake_api()
 	return api
 end
 
-local function with_api(options)
+local function with_api(options, edit)
 	local api = fake_api()
+	if edit then edit(api) end
 	IMPORTS["obsidian.api"] = api
 	rawset(_G, "EntityAux", { has_component = function(unit, name) return name == "enemy" and (unit == BUG) end })
 	setup(options)
@@ -677,6 +681,54 @@ test("a_frame_with_a_mark_up_makes_no_tables", function()
 	collectgarbage("restart")
 	jit.on()
 	eq(grew < 1, true, "KB allocated over 500 frames: " .. grew)
+end)
+
+test("a_laser_firing_spins_the_crosshair_and_it_rests_square_after", function()
+	local beam = { firing_auto = false }
+	with_api({}, function(api)
+		local master = api.game.master
+		api.game.master = function(unit, component)
+			if unit == RIFLE and component == "beamweapon" then return beam end
+			return master(unit, component)
+		end
+	end)
+	rawset(_G, "ENGINE_DT", 0.02)
+	frame()
+	assert(#rects_at(862) > 0, "square while the laser is quiet")
+	beam.firing_auto = true
+	kit().calls = {}
+	frame() frame()
+	eq(#rects_at(862), 0, "spinning: no square rects")
+	assert(#polys_at(862) >= 4, "the arms as turned polygons")
+	beam.firing_auto = false
+	for _ = 1, 60 do frame() end
+	kit().calls = {}
+	frame()
+	assert(#rects_at(862) > 0, "at rest square again")
+	with_api({ laser_spin = false }, function(api)
+		api.game.master = function(unit, component)
+			if unit == ME and component == "inventory" then return api.inventory end
+			if unit == RIFLE and component == "beamweapon" then return { firing_auto = true } end
+			return nil
+		end
+	end)
+	kit().calls = {}
+	frame() frame()
+	assert(#rects_at(862) > 0, "option off: the arms stay square")
+end)
+
+test("first_person_crosshair_off_draws_nothing_in_first_person", function()
+	local mode = "first"
+	IMPORTS[ITP] = { claim_crosshair = function() return true end, mode = function() return mode end,
+		crosshair = function() return { x = 960, y = 540, aiming = true } end }
+	setup({ first_person = false })
+	startup()
+	CursorManager.shown = false
+	frame()
+	eq(#kit().calls, 0, "nothing in first person")
+	mode = "third"
+	frame()
+	assert(#rects_at(862) > 0, "drawn in third person")
 end)
 
 return T

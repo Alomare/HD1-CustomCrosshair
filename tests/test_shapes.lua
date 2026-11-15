@@ -11,6 +11,8 @@ local function settings(over)
 	-- that is sharp at half strength once one is switched on.
 	s.outline, s.shadow, s.opacity = false, false, 1
 	s.shadow_opacity, s.shadow_offset, s.shadow_blur = 0.5, 2, 0
+	-- The gap and arms of the aiming default before 0.5.1, which the shapes below are measured with.
+	s.gap, s.length = 2, shapes.ARM
 	for k, v in pairs(over or {}) do s[k] = v end
 	return s
 end
@@ -310,7 +312,7 @@ end)
 
 test("length_sets_the_arms_the_circle_and_the_brackets", function()
 	eq(shapes.DEFAULTS.idle.length, shapes.ARM, "idle default keeps the old arms")
-	eq(shapes.DEFAULTS.aim.length, shapes.ARM, "aiming default keeps the old arms")
+	eq(shapes.DEFAULTS.aim.length, 10, "aiming default: 10 long since 0.5.1")
 	-- Cross, 2 thick, gap 4: the right arm starts 5 out and runs `length`.
 	local cross = rects(layer(shapes.layers(settings({ shape = "cross", thickness = 2, gap = 4, length = 12 })), "fill").items)
 	eq(cross, rect_list({ { 5, -1, 12, 2 }, { -17, -1, 12, 2 }, { -1, 5, 2, 12 }, { -1, -17, 2, 12 } }), "arms 12 long")
