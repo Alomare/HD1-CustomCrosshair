@@ -24,9 +24,10 @@ local shapes = obsidian.module("src/shapes")
 local hitmarker = obsidian.module("src/hitmarker")
 local spin = obsidian.module("src/spin")
 
-local VERSION = "0.6.1"
+local VERSION = "0.6.2"
 local MOD_ID = "alomare.customcrosshair"
-local ITP_ID = "alomare.integratedthirdperson"
+-- Unleashed Camera: the id since 0.8.0, then the id it had before (Integrated Third Person).
+local ITP_IDS = { "alomare.unleashedcamera", "alomare.integratedthirdperson" }
 local API_ID = "obsidian.api"
 
 -- Under the in-game menu of Obsidian (876). The shadow with the blur copies, the outline and the lines
@@ -347,7 +348,11 @@ end
 
 local function join_itp()
 	if option("third_person", true) == false then return end
-	local ok, mod = pcall(obsidian.import, ITP_ID)
+	local ok, mod = false, nil
+	for _, id in ipairs(ITP_IDS) do
+		ok, mod = pcall(obsidian.import, id)
+		if ok and type(mod) == "table" then break end
+	end
 	if not (ok and type(mod) == "table" and type(mod.crosshair) == "function") then return end
 	itp = mod
 	if not crosshair then

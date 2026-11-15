@@ -2,6 +2,10 @@
 
 New, changed, fixed or removed features, one line each, brief and direct. The section for a release becomes the release notes.
 
+## 0.6.2
+
+- Changed: works with Unleashed Camera 0.8.0 and later, under the new id, and still with the old one.
+
 ## 0.6.1
 
 - Changed: the options name Unleashed Camera, the new name of Integrated Third Person.

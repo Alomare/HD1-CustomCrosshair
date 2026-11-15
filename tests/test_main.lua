@@ -3,7 +3,7 @@
 local T = {}
 local function test(name, fn) T[#T + 1] = { name, fn } end
 
-local ITP = "alomare.integratedthirdperson"
+local ITP = "alomare.unleashedcamera"
 local MOUSE = { x = 500, y = 300 }
 
 -- The look of 0.4.0, which the tests below measure against: the defaults since 0.5.0 differ.
