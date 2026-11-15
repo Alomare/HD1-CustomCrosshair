@@ -9,3 +9,4 @@ tests export-ignore
 tools export-ignore
 .github export-ignore
 CHANGELOG.md export-ignore
+thumbnail.jpg export-ignore

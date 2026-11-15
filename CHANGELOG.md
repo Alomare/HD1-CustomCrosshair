@@ -4,6 +4,7 @@ New, changed, fixed or removed features, one line each, brief and direct. The se
 
 ## 0.6.3
 
+- New: an icon in Obsidian.
 - Changed: works with Eyes of Liberty, the new name of Unleashed Camera, and still with the older ids.
 
 ## 0.6.2

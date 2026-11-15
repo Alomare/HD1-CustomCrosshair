@@ -11,6 +11,7 @@
   "authors": [
     "Alomare"
   ],
+  "image": "icon.jpg",
   "scope": "client",
   "entry": "main.lua",
   "source": "https://github.com/Alomare/HD1-CustomCrosshair",
