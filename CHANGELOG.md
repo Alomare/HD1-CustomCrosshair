@@ -2,6 +2,10 @@
 
 New, changed, fixed or removed features, one line each, brief and direct. The section for a release becomes the release notes.
 
+## 0.6.1
+
+- Changed: the options name Unleashed Camera, the new name of Integrated Third Person.
+
 ## 0.6.0
 
 - New: the crosshair fades out while sprinting in Integrated Third Person 0.6.0 and later.

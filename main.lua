@@ -8,7 +8,7 @@
 -- with "_large" after it when the large cursor is on. A hook on Window.set_cursor swaps the game
 -- cursor of each state whose shape isn't "game" for the invisible one, and leaves every other cursor
 -- alone. Every frame the crosshair is drawn with obsidian.ui.canvas at the mouse, in the look of the
--- state CursorManager asked for. With Integrated Third Person steering the view, it is drawn where that
+-- state CursorManager asked for. With Unleashed Camera steering the view, it is drawn where that
 -- mod says shots go instead.
 --
 -- With the game option that keeps the crosshair up turned off, the game hides the cursor between
@@ -24,7 +24,7 @@ local shapes = obsidian.module("src/shapes")
 local hitmarker = obsidian.module("src/hitmarker")
 local spin = obsidian.module("src/spin")
 
-local VERSION = "0.6.0"
+local VERSION = "0.6.1"
 local MOD_ID = "alomare.customcrosshair"
 local ITP_ID = "alomare.integratedthirdperson"
 local API_ID = "obsidian.api"
@@ -334,8 +334,8 @@ if hide.aim then
 	end)
 end
 
--- Integrated Third Person: where shots go while it steers the view. `claimed` while this mod draws the
--- crosshair there; with both states on "game" Integrated Third Person keeps the built-in crosshair, and
+-- Unleashed Camera: where shots go while it steers the view. `claimed` while this mod draws the
+-- crosshair there; with both states on "game" Unleashed Camera keeps the built-in crosshair, and
 -- the hitmarker goes around that one.
 local itp, claimed = nil, false
 local function third_person()
@@ -351,15 +351,15 @@ local function join_itp()
 	if not (ok and type(mod) == "table" and type(mod.crosshair) == "function") then return end
 	itp = mod
 	if not crosshair then
-		obsidian.log("custom crosshair: hitmarker around the crosshair of Integrated Third Person")
+		obsidian.log("custom crosshair: hitmarker around the crosshair of Unleashed Camera")
 		return
 	end
 	if type(mod.claim_crosshair) == "function" then
 		local done, err = pcall(mod.claim_crosshair, MOD_ID)
-		if not done then obsidian.log("custom crosshair: Integrated Third Person refused the crosshair: " .. tostring(err)) end
+		if not done then obsidian.log("custom crosshair: Unleashed Camera refused the crosshair: " .. tostring(err)) end
 	end
 	claimed = true
-	obsidian.log("custom crosshair: drawing the crosshair of Integrated Third Person")
+	obsidian.log("custom crosshair: drawing the crosshair of Unleashed Camera")
 end
 
 if type(obsidian.after_startup) == "function" then
@@ -383,7 +383,7 @@ end
 
 -- Moves the blend toward the state shown now, then draws one look, or both while they cross. Answers
 -- where the centre sits in the aim pixel, from the look that shows the most. opacity (0 to 1, 1 when
--- left out) fades the whole crosshair: Integrated Third Person fades it while sprinting.
+-- left out) fades the whole crosshair: Unleashed Camera fades it while sprinting.
 local function draw_state(pick, aiming, x, y, opacity)
 	local o = type(opacity) == "number" and math.max(0, math.min(1, opacity)) or 1
 	local target = aiming and 1 or 0
@@ -489,7 +489,7 @@ end
 
 local first_person_on = option("first_person", true) ~= false
 
--- Whether Integrated Third Person draws the first person view now.
+-- Whether Unleashed Camera draws the first person view now.
 local function first_person()
 	if not (itp and type(itp.mode) == "function") then return false end
 	local ok, mode = pcall(itp.mode)
@@ -508,8 +508,8 @@ local function frame()
 			blend = nil
 		else
 			-- Aiming while the aim button, fire or a throw is held, as the game picks the cursor in the
-			-- top-down view. Integrated Third Person before 0.4.2 reports no firing.
-			-- Integrated Third Person 0.6.0 and later fade the crosshair while sprinting.
+			-- top-down view. Unleashed Camera before 0.4.2 reports no firing.
+			-- Unleashed Camera 0.6.0 and later fade the crosshair while sprinting.
 			-- First person with First person crosshair off: no crosshair at all.
 			local fade = spot.fade
 			if not first_person_on and first_person() then fade = 0 end
