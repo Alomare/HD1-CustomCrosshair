@@ -24,7 +24,7 @@ local shapes = obsidian.module("src/shapes")
 local hitmarker = obsidian.module("src/hitmarker")
 local spin = obsidian.module("src/spin")
 
-local VERSION = "0.6.3"
+local VERSION = "0.6.4"
 local MOD_ID = "alomare.customcrosshair"
 -- Eyes of Liberty: the id it has now, then the ids it had before (Eyes of Liberty from 0.8.0 to 0.9.1,
 -- Integrated Third Person before that).

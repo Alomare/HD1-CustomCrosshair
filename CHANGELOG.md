@@ -2,6 +2,10 @@
 
 New, changed, fixed or removed features, one line each, brief and direct. The section for a release becomes the release notes.
 
+## 0.6.4
+
+- Changed: a shorter description in Obsidian and the store.
+
 ## 0.6.3
 
 - New: an icon in Obsidian.
