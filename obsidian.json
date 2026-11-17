@@ -6,7 +6,7 @@
     "en": "Custom Crosshair"
   },
   "description": {
-    "en": "Replaces the aim cursor with a custom crosshair and adds a hitmarker."
+    "en": "Replaces the cursor with a customizable crosshair, with separate presets for idle and aiming. Also adds a hitmarker."
   },
   "authors": [
     "Alomare"
