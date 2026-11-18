@@ -2,7 +2,7 @@
 
 A crosshair mod for HELLDIVERS (2015), for the [Obsidian](https://github.com/Alomare/ObsidianLauncher) mod manager.
 
-Custom Crosshair replaces the aim cursor with a crosshair built from shapes, with one look between shots and another while aiming. Shape, size, gap, color, outline and shadow are all settings. A hitmarker flashes around the crosshair when a shot from this player hurts or kills an enemy.
+Custom Crosshair replaces the aim cursor with a crosshair built from shapes, with one look between shots and another while aiming. Shape, size, gap, color, outline and shadow are all settings. A hitmarker flashes around the crosshair, with a sound, when a shot from this player hurts or kills an enemy.
 
 ## How to use
 

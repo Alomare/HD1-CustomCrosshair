@@ -2,6 +2,11 @@
 
 New, changed, fixed or removed features, one line each, brief and direct. The section for a release becomes the release notes.
 
+## 0.7.0
+
+- New: Hitmarker sound: a short sound plays with every mark the hitmarker shows, with a volume setting.
+- Changed: Aiming gap scales with spread now places the arms at the edge of the real spread of the weapon on screen, in third person and in the top-down view.
+
 ## 0.6.4
 
 - Changed: a shorter description in Obsidian and the store.

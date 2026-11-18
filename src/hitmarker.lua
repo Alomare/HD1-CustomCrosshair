@@ -21,15 +21,16 @@ M.FROM = { "weapons", "all" }
 M.DEFAULTS = {
 	on = true, hits = true, kills = true, from = "weapons", color = "#ffffff", kill_color = "#ff2929",
 	opacity = 0.5, kill_opacity = 1, kill_scale = 1.2,
-	size = 10, gap = 6, thickness = 3.5, time = 0.35, outline = false,
+	size = 10, gap = 6, thickness = 3.5, time = 0.35, outline = false, sound = true, sound_volume = 0.6,
 }
 M.KEYS = { "on", "hits", "kills", "from", "color", "kill_color", "opacity", "kill_opacity", "kill_scale", "size", "gap",
-	"thickness", "time", "outline" }
+	"thickness", "time", "outline", "sound", "sound_volume" }
 M.IDS = {
 	on = "hitmarker", hits = "hitmarker_hits", kills = "hitmarker_kills", from = "hitmarker_from",
 	color = "hitmarker_color", kill_color = "hitmarker_kill_color", opacity = "hitmarker_opacity",
 	kill_opacity = "hitmarker_kill_opacity", kill_scale = "hitmarker_kill_scale", size = "hitmarker_size",
 	gap = "hitmarker_gap", thickness = "hitmarker_thickness", time = "hitmarker_time", outline = "hitmarker_outline",
+	sound = "hitmarker_sound", sound_volume = "hitmarker_sound_volume",
 }
 
 -- The settings from get(id), the option values, with the defaults filling in what is missing or of the

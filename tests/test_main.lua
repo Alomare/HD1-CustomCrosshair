@@ -16,6 +16,8 @@ local LOOK = {
 	-- Defaults that changed in 0.5.1, held at the values the tests measure against.
 	aim_length = 8, idle_shadow = false, idle_shadow_blur = 0, idle_shadow_offset = 2, idle_shadow_opacity = 0.5,
 	hitmarker_size = 12, hitmarker_thickness = 2,
+	-- No sound out of the speakers while the tests run.
+	hitmarker_sound = false,
 }
 
 local function setup(options, defaults)
@@ -630,25 +632,30 @@ test("in_third_person_the_mark_goes_round_the_aim_point", function()
 end)
 
 test("the_aiming_gap_opens_with_the_spread_of_the_weapon_in_hand", function()
-	local shapes = obsidian.module("src/shapes")
-	local api = with_api({})
+	-- The Helldiver 100 px left of the cursor in the top-down view: a tangent spans 100 px there.
+	local vec = { __add = function(a, b) return setmetatable({ x = a.x + b.x, y = a.y + b.y, z = a.z + b.z }, getmetatable(a)) end }
+	rawset(_G, "Vector3", function(x, y, z) return setmetatable({ x = x, y = y, z = z }, vec) end)
+	rawset(_G, "Unit", { world_position = function() return Vector3(0, 0, 0) end })
+	rawset(_G, "CameraManager", { viewport = { world_to_screen = function() return { x = 400, y = 300 } end } })
+	local api = with_api({}, function(a) a.firearm = { spread = 0, spread_min = 0, spread_max = 0.2, fixed_spread = true } end)
 	frame()
 	assert(has_rect(862, 505, 299, 8, 2), "no spread: the gap set")
-	api.firearm.spread = 5
+	-- tan(0.2) * 100 = 20.3 px: the arms at 20, the gap of 4 opens by 16.
+	api.firearm.spread = 0.2
 	kit().calls = {}
 	frame()
-	assert(has_rect(862, 505 + shapes.SPREAD_GAP, 299, 8, 2), "the most spread: the gap opens all the way")
-	api.firearm.spread = 3
+	assert(has_rect(862, 505 + 16, 299, 8, 2), "the arms at the edge of the cone")
+	api.firearm.spread = 0.01
 	kit().calls = {}
 	frame()
-	assert(has_rect(862, 505 + shapes.SPREAD_GAP / 2, 299, 8, 2), "half way")
-	api.firearm.spread = 1
+	assert(has_rect(862, 505, 299, 8, 2), "a cone inside the gap set: the gap stays")
 	with_api({ aim_gap_spread = false })
 	api = IMPORTS["obsidian.api"]
-	api.firearm.spread = 5
+	api.firearm.spread = 0.2
 	kit().calls = {}
 	frame()
 	assert(has_rect(862, 505, 299, 8, 2), "option off: the gap stays")
+	rawset(_G, "Unit", nil) rawset(_G, "Vector3", nil) rawset(_G, "CameraManager", nil)
 end)
 
 test("the_mark_sits_on_the_centre_of_an_odd_crosshair", function()

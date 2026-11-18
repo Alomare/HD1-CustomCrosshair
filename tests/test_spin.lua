@@ -64,12 +64,11 @@ end)
 test("spread_follows_the_shots_counted_as_they_decay", function()
 	-- The game leaves spread at the last shot's value; the shots counted go down every frame.
 	local st = { spread = 5, spread_min = 1, spread_max = 5, spread_shots_fired = 10, spread_shots_max = 10 }
-	eq(shapes.spread_fraction(st), 1, "right after a burst")
+	eq(shapes.spread_angle(st), 5, "right after a burst")
 	st.spread_shots_fired = 5
-	eq(shapes.spread_fraction(st), 0.5, "half recovered, spread untouched")
+	eq(shapes.spread_angle(st), 3, "half recovered, spread untouched")
 	st.spread_shots_fired = -3
-	eq(shapes.spread_fraction(st), 0, "the game lets the count go below 0")
-	eq(shapes.spread_fraction({ spread = 3, spread_min = 1, spread_max = 5 }), 0.5, "no count: the spread")
+	eq(shapes.spread_angle(st), 1, "the game lets the count go below 0")
 end)
 
 return T

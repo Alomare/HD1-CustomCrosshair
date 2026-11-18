@@ -24,14 +24,14 @@ end
 test("identity_and_files", function()
 	local m = manifest()
 	eq(m.id, "alomare.customcrosshair", "id")
-	eq(m.version, "0.6.4", "version")
+	eq(m.version, "0.7.0", "version")
 	eq(m.scope, "client", "scope")
 	eq(m.entry, "main.lua", "entry")
 	eq(m.authors[1], "Alomare", "author")
 	eq(m.source, "https://github.com/Alomare/HD1-CustomCrosshair", "source")
 	eq(exists(m.entry), true, "entry exists")
 	for _, path in ipairs(m.modules) do eq(exists(path), true, path) end
-	eq(#m.modules, 3, "shapes, hitmarker and spin")
+	eq(#m.modules, 5, "shapes, hitmarker, the sound and the sound data, and spin")
 	-- The hitmarker hears hits through Obsidian API; nothing else is needed.
 	eq(#m.requires, 1, "one other mod")
 	eq(m.requires[1], "obsidian.api", "Obsidian API")

@@ -333,29 +333,34 @@ function M.settings(prefix, get)
 	return s
 end
 
--- Aiming gap scales with spread: the gap of the aiming crosshair opens by up to SPREAD_GAP pixels
--- (before the scale) as the spread of the weapon grows from least to most. The firearm of the game keeps
--- the spread it fires with now in the firearm state (FirearmComponent: spread, from spread_min to spread_max as
--- shots are fired, and back as they decay).
-M.SPREAD_GAP = 12
+-- Aiming gap scales with spread: the arms of the aiming crosshair sit at the edge of the cone the
+-- weapon fires into now, never nearer than the gap set. The firearm of the game keeps the spread in
+-- radians in the firearm state (FirearmComponent: spread_min to spread_max by spread_shots_fired /
+-- spread_shots_max as shots go off, the count going down every frame without one), and each shot
+-- leaves within that angle of the aim (WeaponUtility.get_random_spread). A weapon with fixed_spread
+-- always fires into the `spread` it has. The vertical part of a shot's spread is an eighth of the sideways
+-- one, so the sideways angle is the one the gap shows.
+M.SPREAD_MOST = 200   -- pixels, the widest the gap opens
 
--- How far the spread is between least and most, from 0 to 1, from the state of a firearm.
--- The game works spread out only when a shot goes off (FirearmComponent.calculate_recoil: spread_min
--- to spread_max by spread_shots_fired / spread_shots_max), while spread_shots_fired goes down every
--- frame without a shot. The shot count answers first, so the gap closes as the spread recovers instead
--- of at the next shot.
-function M.spread_fraction(st)
-	if type(st) ~= "table" or st.fixed_spread then return 0 end
-	local shots, most = tonumber(st.spread_shots_fired), tonumber(st.spread_shots_max)
-	if shots and most and most > 0 then return math.max(0, math.min(1, shots / most)) end
+-- The spread angle in radians now, from the state of a firearm. The shot count answers first, so the
+-- gap closes as the spread recovers instead of at the next shot.
+function M.spread_angle(st)
+	if type(st) ~= "table" then return 0 end
 	local now, low, high = tonumber(st.spread), tonumber(st.spread_min), tonumber(st.spread_max)
-	if not (now and low and high) or high <= low then return 0 end
-	return math.max(0, math.min(1, (now - low) / (high - low)))
+	if st.fixed_spread then return math.max(0, now or 0) end
+	local shots, most = tonumber(st.spread_shots_fired), tonumber(st.spread_shots_max)
+	if low and high and shots and most and most > 0 then
+		return low + (high - low) * math.max(0, math.min(1, shots / most))
+	end
+	return math.max(0, now or 0)
 end
 
--- The extra gap in whole pixels for a fraction, so a few looks cover every spread.
-function M.spread_extra(fraction)
-	return math.floor((fraction or 0) * M.SPREAD_GAP + 0.5)
+-- The extra gap in whole pixels, before the scale, for a cone `angle` radians wide when a tangent of 1
+-- spans `per_tan` pixels on screen at the aim point: the cone's edge less the gap already set.
+function M.spread_extra(angle, per_tan, gap, scale)
+	if type(angle) ~= "number" or angle <= 0 or type(per_tan) ~= "number" or per_tan <= 0 then return 0 end
+	local edge = math.min(M.SPREAD_MOST, math.tan(math.min(angle, 1.4)) * per_tan) / ((scale or 1) > 0 and scale or 1)
+	return math.max(0, math.floor(edge - (gap or 0) + 0.5))
 end
 
 -- A copy of settings s with `extra` pixels on the gap.

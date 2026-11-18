@@ -1,7 +1,7 @@
 {
   "obsidian": 1,
   "id": "alomare.customcrosshair",
-  "version": "0.6.4",
+  "version": "0.7.0",
   "name": {
     "en": "Custom Crosshair"
   },
@@ -18,6 +18,8 @@
   "modules": [
     "src/shapes.lua",
     "src/hitmarker.lua",
+    "src/sound.lua",
+    "src/hitsound.lua",
     "src/spin.lua"
   ],
   "requires": [
@@ -142,7 +144,7 @@
       "description": { "en": "Length of each line. Circles, brackets and the chevron grow with it." } },
     { "id": "aim_gap_spread", "type": "toggle", "default": true, "group": "aim",
       "label": { "en": "Aiming gap scales with spread" },
-      "description": { "en": "Opens the aiming gap by up to 12 pixels as the spread of the weapon in hand grows while firing, and closes it as the spread settles." } },
+      "description": { "en": "Opens the aiming gap to the edge of the spread the weapon in hand fires into now, in third person and the top-down view, and closes it as the spread settles. The gap never closes past the one set above." } },
     { "id": "aim_thickness", "type": "number", "default": 3, "min": 0, "max": 6, "step": 0.01, "group": "aim",
       "label": { "en": "Aiming thickness (px)" },
       "description": { "en": "Width of the lines. The dot is twice as wide." } },
@@ -221,7 +223,13 @@
       "description": { "en": "How long a mark takes to fade out. A new hit starts the fade again." } },
     { "id": "hitmarker_outline", "type": "toggle", "default": false, "group": "hitmarker", "visible_when": { "hitmarker": true },
       "label": { "en": "Hitmarker outline" },
-      "description": { "en": "A black border one pixel wide, so the mark stands out on light ground." } }
+      "description": { "en": "A black border one pixel wide, so the mark stands out on light ground." } },
+    { "id": "hitmarker_sound", "type": "toggle", "default": true, "group": "hitmarker", "visible_when": { "hitmarker": true },
+      "label": { "en": "Hitmarker sound" },
+      "description": { "en": "Plays a short sound with every mark the hitmarker shows, for hits and kills as set above." } },
+    { "id": "hitmarker_sound_volume", "type": "number", "default": 0.6, "min": 0, "max": 1, "step": 0.05, "group": "hitmarker", "visible_when": { "hitmarker": true, "hitmarker_sound": true },
+      "label": { "en": "Hitmarker sound volume" },
+      "description": { "en": "How loud the hitmarker sound plays. The volume settings of the game don't change it." } }
   ],
   "resources": []
 }

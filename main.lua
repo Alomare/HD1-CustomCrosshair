@@ -24,7 +24,7 @@ local shapes = obsidian.module("src/shapes")
 local hitmarker = obsidian.module("src/hitmarker")
 local spin = obsidian.module("src/spin")
 
-local VERSION = "0.6.4"
+local VERSION = "0.7.0"
 local MOD_ID = "alomare.customcrosshair"
 -- Eyes of Liberty: the id it has now, then the ids it had before (Eyes of Liberty from 0.8.0 to 0.9.1,
 -- Integrated Third Person before that).
@@ -129,8 +129,8 @@ local function flying_look(f)
 	return look
 end
 
--- Aiming gap scales with spread (option aim_gap_spread): the aiming look with the gap opened by whole
--- pixels as the held weapon's spread grows, each made once.
+-- Aiming gap scales with spread (option aim_gap_spread): the aiming look with the arms at the edge of
+-- the weapon's cone on screen, each gap in whole pixels made once.
 local spread_on = obsidian.settings.get("aim_gap_spread") ~= false and hide.aim
 -- Laser spin (option laser_spin): the crosshair turns while a laser weapon of this player fires.
 local spin_on = option("laser_spin", true) ~= false and crosshair
@@ -150,7 +150,41 @@ local function spread_now()
 	if weapon == nil then return 0 end
 	local ok_f, firearm = pcall(game_api.game.master, weapon, "firearm")
 	if not ok_f then return 0 end
-	return shapes.spread_fraction(firearm)
+	return shapes.spread_angle(firearm)
+end
+
+-- Pixels a tangent of 1 spans at the aim point, set each frame (nil when unknown). In third person the
+-- camera sits behind the weapon, so an angle at the weapon is about the same angle at the camera: half
+-- the window height over the tangent of half the field of view. In the top-down view a shot's sideways
+-- miss grows with the distance, and the screen keeps distances about as they are near the Helldiver, so
+-- it is the pixels from the Helldiver to the cursor.
+local per_tan = nil
+
+local function third_per_tan()
+	local cm, C = rawget(_G, "CameraManager"), rawget(_G, "Camera")
+	if type(cm) ~= "table" or not cm.viewport or type(C) ~= "table" then return nil end
+	local fov = C.vertical_fov(cm.viewport:get_camera())
+	local _, h = cm.viewport:window()
+	if type(fov) ~= "number" or fov <= 0 or type(h) ~= "number" then return nil end
+	return (h / 2) / math.tan(fov / 2)
+end
+
+local function top_per_tan(x, y)
+	local cm, U, V3 = rawget(_G, "CameraManager"), rawget(_G, "Unit"), rawget(_G, "Vector3")
+	if not (game_api and type(cm) == "table" and cm.viewport and U and V3) then return nil end
+	local player = game_api.game.my_unit()
+	if player == nil then return nil end
+	local at = cm.viewport:world_to_screen(U.world_position(player, 0) + V3(0, 0, 1))
+	if not at then return nil end
+	local dx, dy = x - at.x, y - at.y
+	return math.sqrt(dx * dx + dy * dy)
+end
+
+local function measure(third, x, y)
+	if not spread_on then return end
+	local ok, value
+	if third then ok, value = pcall(third_per_tan) else ok, value = pcall(top_per_tan, x, y) end
+	per_tan = ok and value or nil
 end
 
 -- Whether this player's weapon in hand is a laser (a beam weapon) and fires now: firing_auto while the
@@ -170,7 +204,8 @@ local spinning = spin.new(spin.square_for(settings.idle.shape, settings.aim.shap
 -- The aiming look for the spread now: the plain one at none.
 local function spread_look(base)
 	if not spread_on or base ~= looks.aim then return base end
-	local extra = shapes.spread_extra(spread_now())
+	local s = settings.aim
+	local extra = shapes.spread_extra(spread_now(), per_tan, s.gap or 0, s.scale or 1)
 	if extra <= 0 then return base end
 	local look = spread_looks[extra]
 	if not look then
@@ -470,6 +505,16 @@ local function held(owner, attacker)
 	return false
 end
 
+-- The hitmarker sound (src/sound.lua), with every mark the hitmarker shows.
+local player = nil
+if marker and marker.sound and marker.sound_volume > 0 then
+	local ok, made, why = pcall(function() return obsidian.module("src/sound").new(obsidian.module("src/hitsound"), marker.sound_volume) end)
+	if ok and made then player = made else obsidian.log("custom crosshair: no hitmarker sound (" .. tostring(ok and why or made) .. ")") end
+end
+local function ping()
+	if player then pcall(player.play, clock) end
+end
+
 if marker then
 	marks = {}
 	for _, kind in ipairs({ "hit", "kill" }) do
@@ -480,7 +525,10 @@ if marker then
 		api.combat.on_hit(function(victim, hit)
 			if type(hit) ~= "table" or not mine(hit.owner_unit) then return end
 			if weapons_only and hit.slot == nil then return end
-			if enemy(victim) then hit_at = clock end
+			if enemy(victim) then
+				hit_at = clock
+				ping()
+			end
 		end)
 	end
 	if marker.kills then
@@ -488,6 +536,7 @@ if marker then
 			if not mine(owner) then return end
 			if weapons_only and not held(owner, attacker) then return end
 			kill_at = clock
+			ping()
 		end)
 		if ok == false then obsidian.log("custom crosshair: Obsidian API refused the kill event (" .. tostring(why) .. "), so kills show no mark") end
 	end
@@ -519,7 +568,10 @@ local function frame()
 			-- First person with First person crosshair off: no crosshair at all.
 			local fade = spot.fade
 			if not first_person_on and first_person() then fade = 0 end
-			if claimed then mc = draw_state(third_looks, spot.aiming or spot.firing, spot.x, spot.y, fade) end
+			if claimed then
+				measure(true)
+				mc = draw_state(third_looks, spot.aiming or spot.firing, spot.x, spot.y, fade)
+			end
 			mx, my = spot.x, spot.y
 		end
 	else
@@ -527,6 +579,7 @@ local function frame()
 		local x, y = nil, nil
 		if state then x, y = mouse() end
 		if x then
+			measure(false, x, y)
 			mc = draw_state(top_looks, state == "aim", x, y)
 			mx, my = x, y
 		else
