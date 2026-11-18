@@ -32,4 +32,11 @@ test("the_volume_scales_every_sample_and_keeps_the_header", function()
 	eq(sample(sound.scaled(wav, 0), at), 0, "silent")
 end)
 
+test("the_setting_follows_a_curve_below_the_full_sound", function()
+	eq(sound.gain(0), 0, "off")
+	near(sound.gain(1), sound.GAIN, "the most")
+	near(sound.gain(0.7), 0.196, "0.7 plays as 0.2 did in 0.7.0", 1e-3)
+	near(sound.gain(0.5), sound.GAIN / 4, "half way is a quarter")
+end)
+
 return T

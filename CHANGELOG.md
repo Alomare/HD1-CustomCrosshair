@@ -2,6 +2,10 @@
 
 New, changed, fixed or removed features, one line each, brief and direct. The section for a release becomes the release notes.
 
+## 0.7.1
+
+- Changed: The hitmarker sound is much quieter, and the volume setting changes it more evenly across the range.
+
 ## 0.7.0
 
 - New: Hitmarker sound: a short sound plays with every mark the hitmarker shows, with a volume setting.

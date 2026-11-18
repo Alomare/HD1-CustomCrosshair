@@ -9,6 +9,15 @@ local M = {}
 M.FLAGS = 0x0001 + 0x0002 + 0x0004  -- SND_ASYNC, SND_NODEFAULT, SND_MEMORY
 M.HEAD = 44                         -- bytes before the samples of a plain WAV
 M.GAP = 0.03                        -- seconds between two plays at the least
+-- The setting (0 to 1) to the share of the full sound: squared, as ears hear loudness on a log scale,
+-- and at most GAIN, since the full sound is as loud as a sound can be (in 0.7.0, 0.2 sounded like 0.7).
+-- 0.7 now plays as 0.2 did.
+M.GAIN = 0.4
+
+function M.gain(setting)
+	setting = math.max(0, math.min(1, tonumber(setting) or 0))
+	return M.GAIN * setting * setting
+end
 
 -- The samples of `wav` (a string) at `volume` (0 to 1) as a string, the header kept. Pure, for tests.
 function M.scaled(wav, volume)
@@ -50,7 +59,7 @@ function M.new(wav, volume)
 	pcall(ffi.cdef, "int PlaySoundA(const char *sound, void *module, unsigned int flags);")
 	local ok, winmm = pcall(ffi.load, "winmm")
 	if not ok then return nil, "no winmm" end
-	local data = M.scaled(wav, volume)
+	local data = M.scaled(wav, M.gain(volume))
 	-- The bytes stay in a buffer of this player's for as long as it lives: Windows reads them while
 	-- the sound plays.
 	local buffer = ffi.new("char[?]", #data)
