@@ -312,8 +312,8 @@ test("a_state_on_game_takes_the_default_look_in_third_person", function()
 	setup({ aim_shape = "game", idle_shape = "dot" })
 	startup()
 	frame()
-	-- The default aiming cross: 3 thick, gap 3, 10 long, so the right arm starts 5 out from the aim pixel.
-	assert(has_rect(862, 105, 99, 10, 3), "default cross")
+	-- The default aiming cross: 3 thick, gap 10, 10 long, so the right arm starts 12 out from the aim pixel.
+	assert(has_rect(862, 112, 99, 10, 3), "default cross")
 end)
 
 test("third_person_shows_the_aiming_look_while_firing", function()
@@ -335,11 +335,25 @@ test("third_person_shows_the_aiming_look_while_firing", function()
 	eq(#rects_at(862), 0, "idle without the field")
 end)
 
+test("third_person_draws_nothing_while_the_helldiver_cannot_shoot", function()
+	local spot = { x = 960.7, y = 540.2, aiming = true, armed = false }
+	IMPORTS[ITP] = { claim_crosshair = function() return true end, crosshair = function() return spot end }
+	setup()
+	startup()
+	CursorManager.shown = false
+	frame()
+	eq(#rects_at(862), 0, "down, dead, in the Hellpod or the like: no crosshair")
+	spot.armed = true
+	kit().calls = {}
+	frame()
+	eq(#rects_at(862) > 0, true, "able to shoot again: the crosshair")
+end)
+
 test("the_defaults_draw_the_default_look", function()
 	setup({}, true)
 	frame()
-	-- Cross 3 thick, gap 3, 10 long, at 0.95, with a thin outline and a soft shadow behind.
-	local arm = has_rect(862, 505, 299, 10, 3)
+	-- Cross with a dot, 3 thick, gap 10, 10 long, at 0.95, with a thin outline and a soft shadow behind.
+	local arm = has_rect(862, 512, 299, 10, 3)
 	assert(arm, "right arm")
 	eq(arm.c[4], 242, "0.95 opacity")
 	assert(#rects_at(861) == 4, "outline")
@@ -482,7 +496,7 @@ test("a_hit_by_this_player_flashes_four_lines_round_the_crosshair", function()
 		near(l.alpha, 0.6, "hit opacity on the first frame")
 		-- The aiming cross is 2 thick: the centre sits on the corner of pixel (500, 300).
 		local x, y = centre_of(l[2])
-		near(math.sqrt((x - 500) ^ 2 + (y - 300) ^ 2), 6 + 12 / 2, "middle of a line from the centre", 1e-9)
+		near(math.sqrt((x - 500) ^ 2 + (y - 300) ^ 2), 10 + 12 / 2, "middle of a line from the centre", 1e-9)
 		near(math.abs(x - 500), math.abs(y - 300), "on a diagonal", 1e-9)
 	end
 	eq(polys_at(863)[1].c[1] .. "," .. polys_at(863)[1].c[4], "0,255", "black outline")
@@ -541,7 +555,7 @@ test("a_kill_shows_the_kill_color_over_a_hit", function()
 	near(lines[1].alpha, 1, "a kill shows solid")
 	for _, l in ipairs(lines) do
 		local x, y = centre_of(l[2])
-		near(math.sqrt((x - 500) ^ 2 + (y - 300) ^ 2), (6 + 12 / 2) * 1.5, "half again as far out", 1e-9)
+		near(math.sqrt((x - 500) ^ 2 + (y - 300) ^ 2), (10 + 12 / 2) * 1.5, "half again as far out", 1e-9)
 	end
 	-- The thickness grows with it: a line is 3 pixels wide.
 	local p = lines[1][2]

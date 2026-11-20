@@ -11,8 +11,8 @@ M.HEAD = 44                         -- bytes before the samples of a plain WAV
 M.GAP = 0.03                        -- seconds between two plays at the least
 -- The setting (0 to 1) to the share of the full sound: squared, as ears hear loudness on a log scale,
 -- and at most GAIN, since the full sound is as loud as a sound can be (in 0.7.0, 0.2 sounded like 0.7).
--- 0.7 now plays as 0.2 did.
-M.GAIN = 0.4
+-- 0.7.1 had 0.4; 1.0.0 has 0.144, so 0.5 plays as 0.3 did in 0.7.1.
+M.GAIN = 0.144
 
 function M.gain(setting)
 	setting = math.max(0, math.min(1, tonumber(setting) or 0))

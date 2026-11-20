@@ -20,8 +20,8 @@ M.FROM = { "weapons", "all" }
 -- from here, and tests/test_manifest.lua keeps the two the same.
 M.DEFAULTS = {
 	on = true, hits = true, kills = true, from = "weapons", color = "#ffffff", kill_color = "#ff2929",
-	opacity = 0.5, kill_opacity = 1, kill_scale = 1.2,
-	size = 10, gap = 6, thickness = 3.5, time = 0.35, outline = false, sound = true, sound_volume = 0.6,
+	opacity = 0.5, kill_opacity = 1, kill_scale = 1.25,
+	size = 15, gap = 10, thickness = 5, time = 0.35, outline = false, sound = true, sound_volume = 0.5,
 }
 M.KEYS = { "on", "hits", "kills", "from", "color", "kill_color", "opacity", "kill_opacity", "kill_scale", "size", "gap",
 	"thickness", "time", "outline", "sound", "sound_volume" }

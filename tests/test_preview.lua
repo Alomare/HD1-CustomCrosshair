@@ -332,7 +332,7 @@ test("default_shadow_settings_draw_what_0_1_drew", function()
 					local c = shapes.centre(s.thickness * k)
 					local got, circles = expected(layers[1].items)
 					eq(got, (expected(rects_0_1(shape, s.thickness, s.gap, k, c, edge, s.shadow_offset, s.length))), shape .. " shadow rects")
-					local parts = shapes.parts(shape, s.length * k, s.gap * k, s.thickness * k)
+					local parts = shapes.parts(shape, s.length * k, s.gap * k, s.thickness * k, s.dot_size * k)
 					local _, old_circles = expected(shapes.items(parts, edge * k, s.shadow_offset * k, c))
 					eq(#circles, #old_circles, shape .. " shadow circles")
 					for i = 1, #old_circles do

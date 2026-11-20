@@ -39,6 +39,7 @@ local function names(p)
 		H = o("thickness") .. "/2",
 		G = o("gap"),
 		T = o("thickness"),
+		D = o("dot_size"),
 		L = o("length"),
 		-- Where the centre sits in the aim pixel (shapes.centre): 0.5 for an odd thickness, 0 for an even one.
 		C = "round(" .. o("thickness") .. "*" .. o("scale") .. ")%2/2",
@@ -134,7 +135,7 @@ local function parts(n, grow, d, z, color)
 
 	-- The dot.
 	out[#out + 1] = string.format('<circle data-if="%s" cx="%s" cy="%s" r="%s"/>',
-		shape_in(n, { "cross_dot", "dot", "circle_dot" }), E(cx), E(cy), E(S .. "*(" .. zs .. T .. plus_g .. ")"))
+		shape_in(n, { "cross_dot", "dot", "circle_dot" }), E(cx), E(cy), E(S .. "*(" .. zs .. n.D .. "/2" .. plus_g .. ")"))
 
 	-- The chevron: two quads meeting on the vertical line through the centre (shapes.chevron_quads).
 	local apex = "(0-" .. S .. "*" .. zs .. "(" .. H .. "+" .. G .. "+" .. T .. "*" .. SQ .. "))"

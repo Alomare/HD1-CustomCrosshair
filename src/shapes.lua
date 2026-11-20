@@ -25,13 +25,13 @@ M.MIN_SIDES, M.MAX_SIDES = 12, 96
 -- tests/test_manifest.lua keeps the two the same.
 M.DEFAULTS = {
 	idle = {
-		shape = "dot", scale = 1, gap = 0, length = 8, thickness = 3, color = "#ffffff", opacity = 0.8,
+		shape = "circle", scale = 1, gap = 0, length = 8, thickness = 3, dot_size = 6, color = "#ffffff", opacity = 0.8,
 		outline = false, outline_color = "#000000", outline_thickness = 1,
 		shadow = true, shadow_color = "#000000", shadow_opacity = 0.2, shadow_offset = 0,
 		shadow_size = 1, shadow_spread = 0, shadow_blur = 3,
 	},
 	aim = {
-		shape = "cross", scale = 1, gap = 3, length = 10, thickness = 3, color = "#ffffff", opacity = 0.95,
+		shape = "cross_dot", scale = 1, gap = 10, length = 10, thickness = 3, dot_size = 6, color = "#ffffff", opacity = 0.95,
 		outline = true, outline_color = "#000000", outline_thickness = 0.51,
 		shadow = true, shadow_color = "#000000", shadow_opacity = 0.2, shadow_offset = 0,
 		shadow_size = 1, shadow_spread = 0, shadow_blur = 3,
@@ -39,7 +39,7 @@ M.DEFAULTS = {
 }
 
 -- The settings of one state, without the prefix.
-M.KEYS = { "shape", "scale", "gap", "length", "thickness", "color", "opacity", "outline", "outline_color", "outline_thickness",
+M.KEYS = { "shape", "scale", "gap", "length", "thickness", "dot_size", "color", "opacity", "outline", "outline_color", "outline_thickness",
 	"shadow", "shadow_color", "shadow_opacity", "shadow_offset", "shadow_size", "shadow_spread", "shadow_blur" }
 
 -- Shadow blur: rings of copies of the shadow, eight copies to a ring, one ring per pixel of blur.
@@ -136,18 +136,19 @@ end
 
 -- The other parts of a shape around the centre (0, 0), in pixels:
 --   { kind = "ring", r_in, r_out }              a circle line
---   { kind = "disc", r }                        a filled circle
+--   { kind = "disc", r }                        a filled circle, the dot: D across
 --   { kind = "chevron", apex, length, width }   a "^" whose centre line starts at (0, apex) and runs
 --                                               `length` down to each side at 45 degrees
--- A, G and T are the arm length, gap and thickness in pixels, the scale already applied.
-function M.parts(shape, A, G, T)
+-- A, G and T are the arm length, gap and thickness in pixels, the scale already applied, and D the
+-- width of the dot (twice the thickness when left out).
+function M.parts(shape, A, G, T, D)
 	local out = {}
 	local H = T / 2
 	if shape == "circle" or shape == "circle_dot" or shape == "circle_cross" then
 		out[#out + 1] = { kind = "ring", r_in = math.max(H + G + A - T, 0), r_out = H + G + A }
 	end
 	if shape == "cross_dot" or shape == "dot" or shape == "circle_dot" then
-		out[#out + 1] = { kind = "disc", r = T }
+		out[#out + 1] = { kind = "disc", r = (D or 2 * T) / 2 }
 	end
 	if shape == "chevron" then
 		-- The tip of the outer edge sits at the gap below the centre.
@@ -283,7 +284,7 @@ function M.layers(s, factor)
 	local offset = s.shadow_offset or 0
 	local function items(grow, shift, z, spread)
 		spread = spread or 0
-		local parts = M.parts(s.shape, length * k * z, gap * k * z, thickness * k * z)
+		local parts = M.parts(s.shape, length * k * z, gap * k * z, thickness * k * z, (s.dot_size or 2 * thickness) * k * z)
 		local out = M.rect_items(s.shape, thickness, gap, k, c, grow, shift, nil, z, length, spread)
 		return M.items(parts, (grow + spread) * k, shift * k, c, out)
 	end

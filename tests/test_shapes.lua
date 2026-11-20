@@ -13,6 +13,8 @@ local function settings(over)
 	s.shadow_opacity, s.shadow_offset, s.shadow_blur = 0.5, 2, 0
 	-- The gap and arms of the aiming default before 0.5.1, which the shapes below are measured with.
 	s.gap, s.length = 2, shapes.ARM
+	-- The dot as it was before the dot size: twice the thickness across.
+	s.dot_size = nil
 	for k, v in pairs(over or {}) do s[k] = v end
 	return s
 end
@@ -237,6 +239,18 @@ test("the_dot_is_twice_the_thickness_across", function()
 	end
 	local grown = layer(shapes.layers(settings({ shape = "dot", thickness = 2, outline = true, outline_thickness = 1 })), "outline")
 	near(grown.items[1].of.r, 3, "outline round the dot")
+end)
+
+test("the_dot_size_is_set_apart_from_the_thickness", function()
+	local fill = layer(shapes.layers(settings({ shape = "cross_dot", thickness = 3, dot_size = 9 })), "fill")
+	local disc
+	for _, it in ipairs(fill.items) do
+		if it.of and it.of.kind == "disc" then disc = it.of end
+	end
+	near(disc.r, 4.5, "9 across")
+	local scaled = layer(shapes.layers(settings({ shape = "dot", thickness = 1, dot_size = 4, scale = 2 })), "fill")
+	near(scaled.items[1].of.r, 4, "scaled with the rest")
+	eq(shapes.DEFAULTS.aim.dot_size, 6, "6 across by default, as twice the default thickness")
 end)
 
 test("the_chevron_is_two_convex_halves_under_the_centre", function()

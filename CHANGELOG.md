@@ -2,6 +2,13 @@
 
 New, changed, fixed or removed features, one line each, brief and direct. The section for a release becomes the release notes.
 
+## 1.0.0
+
+- New: Dot size options for the idle and aiming crosshairs, set apart from the line thickness.
+- Changed: In third person with Eyes of Liberty, the crosshair shows only while the Helldiver can shoot: not while dead, down, carrying, dropping in the Hellpod, putting in a stratagem or looking at the map.
+- Changed: The hitmarker sound is quieter across the whole volume range: 0.5 now plays as 0.3 did.
+- Changed: New defaults: a circle when idle, a cross with a dot when aiming, a wider aiming gap, and larger, thicker hitmarker lines at a sound volume of 0.5.
+
 ## 0.7.1
 
 - Changed: The hitmarker sound is much quieter, and the volume setting changes it more evenly across the range.
