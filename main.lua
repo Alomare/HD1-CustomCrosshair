@@ -24,7 +24,7 @@ local shapes = obsidian.module("src/shapes")
 local hitmarker = obsidian.module("src/hitmarker")
 local spin = obsidian.module("src/spin")
 
-local VERSION = "1.0.0"
+local VERSION = "1.0.1"
 local MOD_ID = "alomare.customcrosshair"
 -- Eyes of Liberty: the id it has now, then the ids it had before (Eyes of Liberty from 0.8.0 to 0.9.1,
 -- Integrated Third Person before that).
@@ -568,8 +568,8 @@ local function frame()
 			-- First person with First person crosshair off: no crosshair at all.
 			local fade = spot.fade
 			if not first_person_on and first_person() then fade = 0 end
-			-- Eyes of Liberty 0.14.0 and later: no crosshair while the Helldiver can't shoot (dead, down,
-			-- carrying, in the Hellpod, putting in a stratagem, on the map).
+			-- Eyes of Liberty 0.14.0 and later: no crosshair while the Helldiver can't shoot (dead, in the
+			-- Hellpod, putting in a stratagem, on the map). Down and carrying still shoot.
 			if spot.armed == false then fade = 0 end
 			if claimed then
 				measure(true)

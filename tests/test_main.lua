@@ -342,7 +342,7 @@ test("third_person_draws_nothing_while_the_helldiver_cannot_shoot", function()
 	startup()
 	CursorManager.shown = false
 	frame()
-	eq(#rects_at(862), 0, "down, dead, in the Hellpod or the like: no crosshair")
+	eq(#rects_at(862), 0, "dead, in the Hellpod or the like: no crosshair")
 	spot.armed = true
 	kit().calls = {}
 	frame()

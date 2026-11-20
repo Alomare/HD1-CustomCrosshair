@@ -2,6 +2,10 @@
 
 New, changed, fixed or removed features, one line each, brief and direct. The section for a release becomes the release notes.
 
+## 1.0.1
+
+- Fixed: In third person with Eyes of Liberty, the crosshair shows while the Helldiver is down or carries something, as both still allow shooting.
+
 ## 1.0.0
 
 - New: Dot size options for the idle and aiming crosshairs, set apart from the line thickness.
